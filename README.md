@@ -43,11 +43,7 @@ mh.disconnect()
 
 ## License
 
-<<<<<<< HEAD
 This project is licensed under Bachmann electronic License - see the [LICENCE](LICENCE) file for details
-=======
-This project is licensed under Bachmann electronic License - see the [LICENSE](LICENSE) file for details
->>>>>>> branch 'master' of https://github.com/bachmann-m200/baem200.git
 
 ## Acknowledgments
 
