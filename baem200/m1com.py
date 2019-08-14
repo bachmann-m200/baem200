@@ -263,7 +263,7 @@ class PyCom:
         
         for syspath in sys.path:
             if syspath.find("DLL")>=2:
-                dllpath = syspath + os.altsep + dllpath
+                dllpath = syspath + os.altsep + 'baem200' + os.altsep + 'x64' + os.altsep + dllpath
                 break  
         
         if(not(os.path.isfile("log.prp"))):
