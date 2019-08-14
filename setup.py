@@ -5,7 +5,11 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="baem200",
+<<<<<<< HEAD
+    version="0.0.11",
+=======
     version="0.0.8",
+>>>>>>> branch 'master' of https://github.com/bachmann-m200/baem200.git
     author="Sven Neumann",
     author_email="sven.neumann@web.de",
     description="Bachmann electronic Python Util Library",
