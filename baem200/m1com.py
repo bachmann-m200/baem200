@@ -258,13 +258,48 @@ class PyCom:
     """
     Instance loading the M1COM DLL
     """
-#    def __init__(self, dllpath = "C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64\\m1com64.dll"):
-    def __init__(self, dllpath = "m1com64.dll"):
+    def __init__(self, dllpath = ""):
+
+        if dllpath == "":
+            
+            # Select correct dll (32bit or 64bit)
+            if sys.maxsize > 2**32: # 64bit
+                dllname = "m1com64.dll"
+            else: # 32bit
+                dllname = "m1com.dll"
+
+            # The search paths
+            searchPath = sys.path
+            searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
+            searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
         
-        for syspath in sys.path:
-            if syspath.find("DLL")>=2:
-                dllpath = syspath + os.altsep + 'baem200' + os.altsep + 'x64' + os.altsep + dllpath
-                break
+            # Look for the correct m1com dll in system paths
+            for syspath in sys.path:
+                for root, dirs, files in os.walk(syspath):
+                    for file in files:
+                        if file == dllname:
+
+                            # m1com found, set dll path
+                            dllpath = os.path.join(root, file)
+
+                            # Assume that the log.prp file can also be found here
+                            logprp = os.path.join(root, "log.prp")
+
+                            # Check if logpath is really correct
+                            if not os.path.isfile(logprp):
+                                raise PyComException("pyCom Error: make sure " + dllname + " and log.prp are in the same directory")
+
+                            break
+
+                    if dllpath != "":
+                        break
+
+                if dllpath != "":
+                    break      
+
+            # Raise exception if the dll and log.prp cannot be found
+            if dllpath == "":
+                raise PyComException("pyCom Error: cannot find " + dllname + " and log.prp in sys.path or Application Directory")
         
         if(not(os.path.isfile("log.prp"))):
             print("pyCom Info: Missing log.prp in Application Directory!")
