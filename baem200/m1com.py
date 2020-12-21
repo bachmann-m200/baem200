@@ -321,7 +321,7 @@ class PyCom:
         self.M1C_GetVersion.argtypes = [ctypes.c_char_p, ctypes.c_uint]
         
         #only load config if version matches:
-        latestVersion = b'V1.11.99 Release'
+        latestVersion = 'V1.11.99 Release'
         currentVersion = self.getDllVersion()
         if(currentVersion != latestVersion):
             raise PyComException("pyCom Error: Wrong Dll Version expected Version: " + str(latestVersion) + " version is: " + str(currentVersion))
@@ -638,7 +638,7 @@ class PyCom:
         #version = ctypes.c_char_p("                                        ")    #40byte buffer
         version = ctypes.c_char_p(40*"".encode('utf-8'))    #40byte buffer
         self.M1C_GetVersion(version, 40)
-        return version.value
+        return version.value.decode("utf-8")
 
 class M1Controller:
     #UnitTests: yes
@@ -758,8 +758,8 @@ class M1Controller:
         hwmodulelist = []
         
         send = INF_CARDINFOLST_C()
-        send.FirstIdx = 0;
-        send.LastIdx = 15;
+        send.FirstIdx = 0
+        send.LastIdx = 15
         recv = INF_CARDINFOLST_R()
         
         info = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"INFO")
@@ -777,21 +777,20 @@ class M1Controller:
 
 
     def copyFromTarget(self, remoteFileName, localFileName):
-        if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), remoteFileName, localFileName) != OK):
-            raise PyComException(("pyCom Error: Can't get copy " + remoteFileName + "from Controller['"+self._ip+"']"))
+        if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), localFileName.encode(), remoteFileName.encode()) != OK):
+            raise PyComException(("pyCom Error: Can't get copy " + remoteFileName + " from Controller['"+self._ip+"']"))
 
-    def copyToTarget(self, remoteFileName, localFileName):
+    def copyToTarget(self, localFileName, remoteFileName):
         if(self._pycom.RFS_CopyToTarget(self.getCtrlHandle(), remoteFileName.encode(), localFileName.encode()) != OK):
             raise PyComException(("pyCom Error: Can't copy " + remoteFileName + " to Controller['"+self._ip+"']"))
 
-    def copyRemote(self, destFile, srcFile):
+    def copyRemote(self, srcFile, destFile):
         if(self._pycom.RFS_CopyRemote(self.getCtrlHandle(), destFile.encode(), srcFile.encode()) != OK):
             raise PyComException(("pyCom Error: Can't copy " + destFile + " to " + srcFile + " on Controller['"+self._ip+"']"))
 
     def remove(self, remoteFileName):
-        if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName) != OK):
-            raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " to Controller['"+self._ip+"']"))
-
+        if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode()) != OK):
+            raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " on Controller['"+self._ip+"']"))
     
     def reboot(self):
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
@@ -801,11 +800,21 @@ class M1Controller:
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(134), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mod + " to Controller['"+self._ip+"']"))
         
-    
     def sendCall(self, proc, send, timeout=1000, version=2):
-
         #M1COM SINT32 MODULE_SendCall(M1C_H_MODULE moduleHandle, UINT32 proc, UINT32 version, const PVOID send, UINT16 sendSize, PVOID recv, UINT16 recvSize, UINT32 timeout);
-        if(self._pycom.MODULE_SendCall(self.getCtrlHandle(), ctypes.c_uint(proc), ctypes.c_uint(version), ctypes.cast(ctypes.pointer(send), ctypes.c_char_p), M1C_MAX_SEND_BUFLEN, ctypes.cast(ctypes.pointer(recv), ctypes.c_char_p), M1C_MAX_RECV_BUFLEN, ctypes.c_uint(timeout) ) != OK):
+        recv = 0
+        sendCall = ctypes.cast(ctypes.pointer(ctypes.c_int32(send)), ctypes.c_void_p)
+        recvCall = ctypes.cast(ctypes.pointer(ctypes.c_int32(recv)), ctypes.c_void_p)
+        returnSendCall = self._pycom.MODULE_SendCall(
+            self.getCtrlHandle(), 
+            ctypes.c_uint(proc), 
+            ctypes.c_uint(version), 
+            sendCall, 
+            ctypes.c_ushort(ctypes.sizeof(sendCall)), 
+            recvCall, 
+            ctypes.c_ushort(ctypes.sizeof(recvCall)), 
+            ctypes.c_uint(timeout) )
+        if(returnSendCall != OK):
             raise PyComException(("pyCom Error: Can't send procedure number " + proc + " to Controller['"+self._ip+"']"))
         return recv
 
