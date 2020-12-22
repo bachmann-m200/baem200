@@ -591,6 +591,13 @@ class PyCom:
         self.TARGET_GetStringParam = m1Dll.TARGET_GetStringParam
         self.TARGET_GetStringParam.argtypes = [ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_GetStringParam.restype  = ctypes.c_char_p
+
+        #UnitTested: no
+        #TODO:
+        #M1COM SINT32 TARGET_GetMaxCallSize(M1C_H_TARGET targetHandle, UINT32* maxCallSize);
+        self.TARGET_GetMaxCallSize = m1Dll.TARGET_GetMaxCallSize
+        self.TARGET_GetMaxCallSize.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+        self.TARGET_GetMaxCallSize.restype  = ctypes.c_long
         
         #UnitTested: no
         #TODO:
@@ -677,10 +684,10 @@ class M1Controller:
             raise PyComException(("pyCom Error: Should not connect to a already connected Target! (call disconnect first!)"))
     #UnitTests: no
     def getSessionLiveTime(self):
+        vartime = ctypes.c_uint(0)
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
         else:
-            vartime = ctypes.c_uint(0)
             if(self._pycom.TARGET_GetSessionLiveTime(self._ctrlHandle, ctypes.byref(vartime)) != OK):
                 raise PyComException(("pyCom Error: Cannot get session live time of Controller["+self._ip+"]"))
         return vartime.value
