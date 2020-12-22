@@ -356,6 +356,13 @@ class PyCom:
         self.TARGET_Connect = m1Dll.TARGET_Connect
         self.TARGET_Connect.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         self.TARGET_Connect.restype  = ctypes.c_long
+
+        #UnitTested: no
+        #Gets session live time
+        #SINT32 TARGET_GetSessionLiveTime(M1C_H_TARGET targetHandle, UINT32* sessionLiveTime);
+        self.TARGET_GetSessionLiveTime = m1Dll.TARGET_GetSessionLiveTime
+        self.TARGET_GetSessionLiveTime.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+        self.TARGET_GetSessionLiveTime.restype  = ctypes.c_long
         
         #UnitTested: no
         #TODO:
@@ -668,6 +675,15 @@ class M1Controller:
                 raise PyComException(("pyCom Error: Can't connect to "+self._ip+" through '"+repr(protocol)+"' with username:"+self._username))
         else:
             raise PyComException(("pyCom Error: Should not connect to a already connected Target! (call disconnect first!)"))
+    #UnitTests: no
+    def getSessionLiveTime(self):
+        if(self._ctrlHandle == None):
+            raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
+        else:
+            vartime = ctypes.c_uint(0)
+            if(self._pycom.TARGET_GetSessionLiveTime(self._ctrlHandle, ctypes.byref(vartime)) != OK):
+                raise PyComException(("pyCom Error: Cannot get session live time of Controller["+self._ip+"]"))
+        return vartime.value
     #UnitTests: yes
     def disconnect(self):
         ret = self._pycom.TARGET_Close(self.getCtrlHandle())
