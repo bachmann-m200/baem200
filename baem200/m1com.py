@@ -432,6 +432,13 @@ class PyCom:
         self.VARIABLE_GetInfo = m1Dll.VARIABLE_GetInfo
         self.VARIABLE_GetInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_GetInfo.restype  = ctypes.c_long
+
+        #UnitTested: no
+        #TODO:VARIABLE_GetFullName
+        #M1COM CHAR8* (M1C_H_VARIABLE variable);
+        self.VARIABLE_GetFullName = m1Dll.VARIABLE_GetFullName
+        self.VARIABLE_GetFullName.argtypes = [ctypes.c_void_p]
+        self.VARIABLE_GetFullName.restype  = ctypes.c_char_p
         
         #UnitTested: no
         #TODO:
