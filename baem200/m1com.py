@@ -363,6 +363,13 @@ class PyCom:
         self.TARGET_GetSessionLiveTime = m1Dll.TARGET_GetSessionLiveTime
         self.TARGET_GetSessionLiveTime.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetSessionLiveTime.restype  = ctypes.c_long
+
+        #UnitTested: no
+        #Renews the connection to the target.
+        #SINT32 TARGET_RenewConnection(M1C_H_TARGET targetHandle);
+        self.TARGET_RenewConnection = m1Dll.TARGET_RenewConnection
+        self.TARGET_RenewConnection.argtypes = [ctypes.c_void_p]
+        self.TARGET_RenewConnection.restype  = ctypes.c_long
         
         #UnitTested: no
         #TODO:
@@ -691,6 +698,12 @@ class M1Controller:
             if(self._pycom.TARGET_GetSessionLiveTime(self._ctrlHandle, ctypes.byref(vartime)) != OK):
                 raise PyComException(("pyCom Error: Cannot get session live time of Controller["+self._ip+"]"))
         return vartime.value
+    #UnitTests: yes
+    def renewConnection(self):
+        if(self._ctrlHandle == None):
+            raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
+        if(self._pycom.TARGET_RenewConnection(self._ctrlHandle) != OK):
+            raise PyComException(("pyCom Error: Cannot renew connection of Controller['"+self._ip+"']"))
     #UnitTests: yes
     def disconnect(self):
         ret = self._pycom.TARGET_Close(self.getCtrlHandle())
