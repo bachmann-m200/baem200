@@ -893,7 +893,7 @@ class M1Controller:
 
         for card in range(send.LastIdx):
             if(self._pycom.MODULE_SendCall(info, ctypes.c_uint(120), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
-                raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
+                raise PyComException(("m1com Error: Can't send procedure number 120 to Controller['"+self._ip+"']"))
             hwmodulelist.append(self.getCardInfoExt(recv.Inf.CardNb))
             send.FirstIdx += 1
             if recv.NbOfObj <= 1:
@@ -925,6 +925,14 @@ class M1Controller:
         recv = ctypes.c_int32(0)        
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(134), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mod + " to Controller['"+self._ip+"']"))
+
+    def resetAll(self):
+        mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
+        self._pycom.MODULE_Connect(mod)
+        send = ctypes.c_int32(0)
+        recv = ctypes.c_int32(0)        
+        if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(142), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
+            raise PyComException(("m1com Error: Can't reset all models on Controller['"+self._ip+"']"))
     
     def sendCall(self, moduleName, proc, send, timeout=1000, version=2):
         #M1COM SINT32 MODULE_SendCall(M1C_H_MODULE moduleHandle, UINT32 proc, UINT32 version, const PVOID send, UINT16 sendSize, PVOID recv, UINT16 recvSize, UINT32 timeout);
