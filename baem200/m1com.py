@@ -14,6 +14,8 @@ MIO_CNAMELEN_A       = 24
 MIO_PRODNBLEN_A      = 12
 M_FILENAMELEN_A      = 16
 M_MODNAMELEN_A       = 12
+M_UNAMELEN2_A        = 64
+M_PWORDLEN2          = 32
 M_CARDNAMELEN_A      = 24
 SVI_ADDRLEN_A        = 64
 MIO_PRODNBLEN_A      = 12
@@ -111,6 +113,49 @@ class RES_EXTPING_R(ctypes.Structure):
                 ("Reserved",   (ctypes.c_ubyte * 2)),
                 ("Type",       ctypes.c_uint32),
                 ("Variant",    ctypes.c_uint32)]
+
+class _SysPerm(ctypes.Union):
+    _fields_ = [("__64", ctypes.c_longlong),
+                ("__32", (ctypes.c_uint32 * 2))]
+
+class _AppPerm(ctypes.Union):
+    _fields_ = [("__64", ctypes.c_longlong),
+                ("__32", (ctypes.c_uint32 * 2))]
+
+class RES_USER_ACCESS(ctypes.Structure):
+    _anonymous_ = ("SysPerm","AppPerm")
+    _fields_ = [("Group",       ctypes.c_uint8),
+                ("Level",       ctypes.c_uint8),
+                ("Priority",    ctypes.c_uint8),
+                ("Spare0",      ctypes.c_uint8),
+                ("SysPerm",     _SysPerm),
+                ("AppPerm",     _AppPerm),
+                ("AppData",     ctypes.c_int32),
+                ("Spare1",      (ctypes.c_uint32 * 3))]
+
+class RES_LOGIN2_C(ctypes.Structure):
+    _fields_ = [("UserParm",    ctypes.c_uint32),
+                ("MainVers",    ctypes.c_uint32),
+                ("SubVers",     ctypes.c_uint32),
+                ("ToolName",    (ctypes.c_char * M_MODNAMELEN_A)),
+                ("UserName",    (ctypes.c_char * M_UNAMELEN2_A)),
+                ("Password",    (ctypes.c_char * M_PWORDLEN2)),
+                ("Local",       ctypes.c_bool),
+                ("Spare1",      (ctypes.c_bool * 3)),
+                ("Spare2",      ctypes.c_uint32),
+                ("Spare3",      ctypes.c_uint32),
+                ("Spare4",      ctypes.c_uint32),
+                ("Spare5",      ctypes.c_uint32)]
+
+class RES_LOGIN2_R(ctypes.Structure):
+    _fields_ = [("RetCode",         ctypes.c_int32),
+                ("SecurityLevel",   ctypes.c_uint32),
+                ("Spare1",          ctypes.c_uint32),
+                ("UserAcc",         ctypes.POINTER(RES_USER_ACCESS)),
+                ("AuthLen",         ctypes.c_uint32),
+                ("Authent",         (ctypes.c_uint8 * 128)),
+                ("UserData",        (ctypes.c_uint8 * 128)),
+                ("Reserv",          (ctypes.c_uint8 * 128))]
     
 class TARGET_INFO(ctypes.Structure):
     #_pack=2
@@ -358,11 +403,18 @@ class PyCom:
         self.TARGET_Connect.restype  = ctypes.c_long
 
         #UnitTested: no
-        #Gets session live time
+        #Gets session live time.
         #SINT32 TARGET_GetSessionLiveTime(M1C_H_TARGET targetHandle, UINT32* sessionLiveTime);
         self.TARGET_GetSessionLiveTime = m1Dll.TARGET_GetSessionLiveTime
         self.TARGET_GetSessionLiveTime.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetSessionLiveTime.restype  = ctypes.c_long
+
+        #UnitTested: no
+        #Returns information about the current login session.
+        #SINT32 TARGET_GetLoginInfo(M1C_H_TARGET targetHandle, RES_LOGIN2_R * resLogin2Reply);
+        self.TARGET_GetLoginInfo = m1Dll.TARGET_GetLoginInfo
+        self.TARGET_GetLoginInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(RES_LOGIN2_R)]
+        self.TARGET_GetLoginInfo.restype  = ctypes.c_long
 
         #UnitTested: no
         #Renews the connection to the target.
@@ -698,11 +750,42 @@ class M1Controller:
             if(self._pycom.TARGET_GetSessionLiveTime(self._ctrlHandle, ctypes.byref(vartime)) != OK):
                 raise PyComException(("pyCom Error: Cannot get session live time of Controller["+self._ip+"]"))
         return vartime.value
-    #UnitTests: yes
+    #UnitTests: no
+    def getLoginInfo(self):
+        if(self._ctrlHandle == None):
+            raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
+        else:
+            mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"RES")        
+            self._pycom.MODULE_Connect(mod)
+
+            send = RES_LOGIN2_C()
+            send.MainVers = 0
+            send.SubVers = 0
+            send.ToolName = self._pycom.servicename.encode()
+            send.UserName = self._username.encode()
+            send.Password = self._password.encode()
+            recv = RES_LOGIN2_R() 
+
+            returnSendCall = self._pycom.MODULE_SendCall(
+                mod, 
+                ctypes.c_uint(304), 
+                ctypes.c_uint(2), 
+                ctypes.pointer(send), 
+                ctypes.sizeof(send), 
+                ctypes.pointer(recv), 
+                ctypes.sizeof(recv), 
+                3000)
+            if returnSendCall != OK:
+                raise PyComException(("m1com Error: Can't send procedure RES_PROC_LOGIN2 to Controller['"+self._ip+"']"))
+            else:
+                if(self._pycom.TARGET_GetLoginInfo(self._ctrlHandle, ctypes.pointer(recv)) != OK):
+                    raise PyComException(("pyCom Error: Cannot get login info of Controller["+self._ip+"]"))
+        return recv
+    #UnitTests: no
     def renewConnection(self):
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
-        if(self._pycom.TARGET_RenewConnection(self._ctrlHandle) != OK):
+        elif(self._pycom.TARGET_RenewConnection(self._ctrlHandle) != OK):
             raise PyComException(("pyCom Error: Cannot renew connection of Controller['"+self._ip+"']"))
     #UnitTests: yes
     def disconnect(self):
@@ -842,25 +925,28 @@ class M1Controller:
         recv = ctypes.c_int32(0)        
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(134), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mod + " to Controller['"+self._ip+"']"))
-        
-    def sendCall(self, proc, send, timeout=1000, version=2):
+    
+    def sendCall(self, moduleName, proc, send, timeout=1000, version=2):
         #M1COM SINT32 MODULE_SendCall(M1C_H_MODULE moduleHandle, UINT32 proc, UINT32 version, const PVOID send, UINT16 sendSize, PVOID recv, UINT16 recvSize, UINT32 timeout);
+        mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode())        
+        self._pycom.MODULE_Connect(mod)
         recv = 0
-        sendCall = ctypes.cast(ctypes.pointer(ctypes.c_int32(send)), ctypes.c_void_p)
-        recvCall = ctypes.cast(ctypes.pointer(ctypes.c_int32(recv)), ctypes.c_void_p)
+        sendCall = ctypes.c_int32(send)
+        recvCall = ctypes.c_int32(recv)
+        sendSize = ctypes.c_ushort(ctypes.sizeof(sendCall))
+        recvSize = ctypes.c_ushort(ctypes.sizeof(recvCall))
         returnSendCall = self._pycom.MODULE_SendCall(
-            self.getCtrlHandle(), 
+            mod, 
             ctypes.c_uint(proc), 
             ctypes.c_uint(version), 
-            sendCall, 
-            ctypes.c_ushort(ctypes.sizeof(sendCall)), 
-            recvCall, 
-            ctypes.c_ushort(ctypes.sizeof(recvCall)), 
+            ctypes.pointer(sendCall), 
+            sendSize, 
+            ctypes.pointer(recvCall), 
+            recvSize, 
             ctypes.c_uint(timeout) )
         if(returnSendCall != OK):
-            raise PyComException(("pyCom Error: Can't send procedure number " + proc + " to Controller['"+self._ip+"']"))
-        return recv
-
+            raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']"))
+        return recvCall
 
 class M1TargetFinder:
     def __init__(self, pycom, maxdevices=50):
