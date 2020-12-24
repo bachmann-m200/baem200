@@ -9,6 +9,7 @@ from ctypes.test.test_pointers import ctype_types
 
 
 #Const:
+RFS_DIRLEN_A         = 200
 MIO_INFOLEN_A        = 200
 MIO_CNAMELEN_A       = 24
 MIO_PRODNBLEN_A      = 12
@@ -156,6 +157,53 @@ class RES_LOGIN2_R(ctypes.Structure):
                 ("Authent",         (ctypes.c_uint8 * 128)),
                 ("UserData",        (ctypes.c_uint8 * 128)),
                 ("Reserv",          (ctypes.c_uint8 * 128))]
+
+class RFS_TM(ctypes.Structure):
+    _fields_ = [("tm_sec",          ctypes.c_int32),
+                ("tm_min",          ctypes.c_int32),
+                ("tm_hour",         ctypes.c_int32),
+                ("tm_mday",         ctypes.c_int32),
+                ("tm_mon",          ctypes.c_int32),
+                ("tm_year",         ctypes.c_int32),
+                ("tm_wday",         ctypes.c_int32),
+                ("tm_yday",         ctypes.c_int32),
+                ("tm_isdst",        ctypes.c_int32)]
+
+class RFS_FSH_ATTRIB(ctypes.Structure):
+    _fields_ = [("FileMode",        ctypes.c_uint16),
+                ("DosFileAtt",      ctypes.c_uint8),
+                ("ModTime",         ctypes.POINTER(RFS_TM)),
+                ("Size",            (ctypes.c_char * RFS_DIRLEN_A))]
+
+class RFS_LISTDIR_ITEM(ctypes.Structure):
+    _fields_ = [("sizeOfItem",      ctypes.c_uint32),
+                ("Attrib",          ctypes.POINTER(RFS_FSH_ATTRIB)),
+                ("NameLen",         ctypes.c_uint32),
+                ("Name",            (ctypes.c_char * RFS_DIRLEN_A))]
+
+class RFS_LISTDIR_ITEM_LIST(ctypes.Structure):
+    _fields_ = [("countVariables",  ctypes.c_uint),
+                ("dirInfo",         ctypes.POINTER(RFS_LISTDIR_ITEM))]
+#RFS_PROC_LISTDIR
+class RFS_LISTDIR_C(ctypes.Structure):
+    _fields_ = [("DirNameLen",      ctypes.c_int32),
+                ("Offset",          ctypes.c_int32),
+                ("MaxNbItems",      ctypes.c_uint32),
+                ("Spare",           (ctypes.c_int32 * 3)),
+                ("DirName",         (ctypes.c_char * RFS_DIRLEN_A))]
+
+class RFS_LISTDIR_R(ctypes.Structure):
+    _fields_ = [("RetCode",         ctypes.c_int32),
+                ("NbItems",         ctypes.c_uint32),
+                ("EndOfDir",        ctypes.c_int32),
+                ("Spare",           (ctypes.c_int32 * 3)),
+                ("Items",           ctypes.POINTER(RFS_LISTDIR_ITEM))]
+    def __init__(self, num_of_structs):
+        elems = (RFS_LISTDIR_ITEM * num_of_structs)()
+        self.Items = ctypes.cast(elems, ctypes.POINTER(RFS_LISTDIR_ITEM))
+        self.NbItems = num_of_structs
+        print("Calc Size: " + str(ctypes.sizeof(self)))
+        print("Real Size: " + str((ctypes.sizeof(self) - ctypes.sizeof(self.Items)) + (ctypes.sizeof(self.Items) * self.NbItems)))
     
 class TARGET_INFO(ctypes.Structure):
     #_pack=2
@@ -917,6 +965,51 @@ class M1Controller:
     def remove(self, remoteFileName):
         if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode()) != OK):
             raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " on Controller['"+self._ip+"']"))
+
+    def listDirectory(self, directoryPath):
+
+        send = RFS_LISTDIR_C()
+        send.DirNameLen = ctypes.c_int32(len(directoryPath) + 1)
+        send.Offset = ctypes.c_int32(0)
+        send.MaxNbItems = ctypes.c_uint32(100)
+        send.DirName = directoryPath.encode()
+        recv = RFS_LISTDIR_R(1)
+
+        rfs = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"RFS")        
+        self._pycom.MODULE_Connect(rfs)
+        returnSendCall = self._pycom.MODULE_SendCall(
+            rfs, 
+            ctypes.c_uint(124), 
+            ctypes.c_uint(2), 
+            ctypes.pointer(send), 
+            ctypes.c_ushort(ctypes.sizeof(send)), 
+            ctypes.pointer(recv), 
+            ctypes.c_ushort(ctypes.sizeof(recv)), 
+            ctypes.c_uint(3000) )
+        if(returnSendCall != OK):
+            raise PyComException(("pyCom Error: Can't list directory of Controller['"+self._ip+"']"))
+        
+        numRecv = recv.NbItems
+        recv = RFS_LISTDIR_R(recv.NbItems)
+        size = (ctypes.sizeof(recv) - ctypes.sizeof(recv.Items)) + (ctypes.sizeof(recv.Items) * recv.NbItems)
+        returnSendCall = self._pycom.MODULE_SendCall(
+            rfs, 
+            ctypes.c_uint(124), 
+            ctypes.c_uint(2), 
+            ctypes.pointer(send), 
+            ctypes.c_ushort(ctypes.sizeof(send)), 
+            ctypes.pointer(recv), 
+            ctypes.c_ushort(size), 
+            ctypes.c_uint(3000) )
+        if(returnSendCall != OK):
+            raise PyComException(("pyCom Error: Can't list directory of Controller['"+self._ip+"']"))
+        
+        for num in range(0, recv.NbItems):
+            print(recv.Items[num].Name)
+        
+        returnValue = recv.Items.Name
+        
+        return returnValue
     
     def reboot(self):
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
