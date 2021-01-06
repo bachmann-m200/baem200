@@ -123,6 +123,17 @@ class _AppPerm(ctypes.Union):
     _fields_ = [("__64", ctypes.c_longlong),
                 ("__32", (ctypes.c_uint32 * 2))]
 
+class tm(ctypes.Structure):
+    _fields_ = [("tm_sec", ctypes.c_int32),
+                ("tm_min", ctypes.c_int32),
+                ("tm_hour", ctypes.c_int32),
+                ("tm_mday", ctypes.c_int32),
+                ("tm_mon", ctypes.c_int32),
+                ("tm_year", ctypes.c_int32),
+                ("tm_wday", ctypes.c_int32),
+                ("tm_yday", ctypes.c_int32),
+                ("tm_isdst", ctypes.c_int32)] 
+
 class RES_USER_ACCESS(ctypes.Structure):
     _anonymous_ = ("SysPerm","AppPerm")
     _fields_ = [("Group",       ctypes.c_uint8),
@@ -158,32 +169,17 @@ class RES_LOGIN2_R(ctypes.Structure):
                 ("UserData",        (ctypes.c_uint8 * 128)),
                 ("Reserv",          (ctypes.c_uint8 * 128))]
 
-class RFS_TM(ctypes.Structure):
-    _fields_ = [("tm_sec",          ctypes.c_int32),
-                ("tm_min",          ctypes.c_int32),
-                ("tm_hour",         ctypes.c_int32),
-                ("tm_mday",         ctypes.c_int32),
-                ("tm_mon",          ctypes.c_int32),
-                ("tm_year",         ctypes.c_int32),
-                ("tm_wday",         ctypes.c_int32),
-                ("tm_yday",         ctypes.c_int32),
-                ("tm_isdst",        ctypes.c_int32)]
-
 class RFS_FSH_ATTRIB(ctypes.Structure):
     _fields_ = [("FileMode",        ctypes.c_uint16),
                 ("DosFileAtt",      ctypes.c_uint8),
-                ("ModTime",         ctypes.POINTER(RFS_TM)),
+                ("ModTime",         tm),
                 ("Size",            (ctypes.c_char * RFS_DIRLEN_A))]
 
 class RFS_LISTDIR_ITEM(ctypes.Structure):
     _fields_ = [("sizeOfItem",      ctypes.c_uint32),
-                ("Attrib",          ctypes.POINTER(RFS_FSH_ATTRIB)),
+                ("Attrib",          RFS_FSH_ATTRIB),
                 ("NameLen",         ctypes.c_uint32),
                 ("Name",            (ctypes.c_char * RFS_DIRLEN_A))]
-
-class RFS_LISTDIR_ITEM_LIST(ctypes.Structure):
-    _fields_ = [("countVariables",  ctypes.c_uint),
-                ("dirInfo",         ctypes.POINTER(RFS_LISTDIR_ITEM))]
 #RFS_PROC_LISTDIR
 class RFS_LISTDIR_C(ctypes.Structure):
     _fields_ = [("DirNameLen",      ctypes.c_int32),
@@ -197,13 +193,12 @@ class RFS_LISTDIR_R(ctypes.Structure):
                 ("NbItems",         ctypes.c_uint32),
                 ("EndOfDir",        ctypes.c_int32),
                 ("Spare",           (ctypes.c_int32 * 3)),
-                ("Items",           ctypes.POINTER(RFS_LISTDIR_ITEM))]
+                ("Items",           RFS_LISTDIR_ITEM)]
     def __init__(self, num_of_structs):
-        elems = (RFS_LISTDIR_ITEM * num_of_structs)()
-        self.Items = ctypes.cast(elems, ctypes.POINTER(RFS_LISTDIR_ITEM))
-        self.NbItems = num_of_structs
-        print("Calc Size: " + str(ctypes.sizeof(self)))
-        print("Real Size: " + str((ctypes.sizeof(self) - ctypes.sizeof(self.Items)) + (ctypes.sizeof(self.Items) * self.NbItems)))
+        #elems = (RFS_LISTDIR_ITEM * num_of_structs)()
+        #self.Items = ctypes.cast(elems, ctypes.POINTER(RFS_LISTDIR_ITEM))
+        #self.NbItems = num_of_structs
+        print("Size: " + str(ctypes.sizeof(self)))
     
 class TARGET_INFO(ctypes.Structure):
     #_pack=2
@@ -241,18 +236,6 @@ class MIO_GETCDINF_C(ctypes.Structure):
 class MIO_GETCDINF_R(ctypes.Structure):
     _fields_ = [("RetCode", ctypes.c_int32),
                 ("Inf", MIO_CARDINF)]
-
-
-class tm(ctypes.Structure):
-    _fields_ = [("tm_sec", ctypes.c_int32),
-                ("tm_min", ctypes.c_int32),
-                ("tm_hour", ctypes.c_int32),
-                ("tm_mday", ctypes.c_int32),
-                ("tm_mon", ctypes.c_int32),
-                ("tm_year", ctypes.c_int32),
-                ("tm_wday", ctypes.c_int32),
-                ("tm_yday", ctypes.c_int32),
-                ("tm_isdst", ctypes.c_int32)] 
 
 class Ver(ctypes.Structure):
     _fields_ = [("Major", ctypes.c_uint8),
@@ -991,7 +974,7 @@ class M1Controller:
         
         numRecv = recv.NbItems
         recv = RFS_LISTDIR_R(recv.NbItems)
-        size = (ctypes.sizeof(recv) - ctypes.sizeof(recv.Items)) + (ctypes.sizeof(recv.Items) * recv.NbItems)
+        size = ctypes.sizeof(recv)
         returnSendCall = self._pycom.MODULE_SendCall(
             rfs, 
             ctypes.c_uint(124), 
@@ -1004,8 +987,15 @@ class M1Controller:
         if(returnSendCall != OK):
             raise PyComException(("pyCom Error: Can't list directory of Controller['"+self._ip+"']"))
         
-        for num in range(0, recv.NbItems):
-            print(recv.Items[num].Name)
+        print("tm_sec: " + str(recv.Items.Attrib.ModTime.tm_sec))
+        print("tm_min: " + str(recv.Items.Attrib.ModTime.tm_min))
+        print("tm_hour: " + str(recv.Items.Attrib.ModTime.tm_hour))
+        print("tm_mday: " + str(recv.Items.Attrib.ModTime.tm_mday))
+        print("tm_mon: " + str(recv.Items.Attrib.ModTime.tm_mon))
+        print("tm_year: " + str(recv.Items.Attrib.ModTime.tm_year))
+        print("tm_wday: " + str(recv.Items.Attrib.ModTime.tm_wday))
+        print("tm_yday: " + str(recv.Items.Attrib.ModTime.tm_yday))
+        print("tm_isdst: " + str(recv.Items.Attrib.ModTime.tm_isdst))
         
         returnValue = recv.Items.Name
         
