@@ -59,10 +59,9 @@ SVI_F_USTRINGLSTBASE = 0x11     #base of Unicode String list type */
 
 #Structures:
 class MODULE_NAME(ctypes.Structure):
-    #_pack=2
     _fields_ = [("name", (ctypes.c_char * M_MODNAMELEN_A))]
+
 class MODULE_NAME_ARRAY(ctypes.Structure):
-    #_pack=2
     _fields_ = [('array_size', ctypes.c_short),
                 ('ARRAY',      ctypes.POINTER(MODULE_NAME))]
 
@@ -70,19 +69,17 @@ class MODULE_NAME_ARRAY(ctypes.Structure):
         elems = (MODULE_NAME * num_of_structs)()
         self.ARRAY = ctypes.cast(elems, ctypes.POINTER(MODULE_NAME))
         self.array_size = num_of_structs
+
 class MODULE_LIST(ctypes.Structure):
-    #_pack_=2
     _fields_ = [("countModules", ctypes.c_ushort),
                 ("names"       , ctypes.POINTER(MODULE_NAME))]
 
 class VARIABLE_INFO(ctypes.Structure):
-    #_pack=2
     _fields_ = [("name",    (ctypes.c_char * (M_MODNAMELEN_A + 1 + SVI_ADDRLEN_A))),
                 ("format",  ctypes.c_ushort),
                 ("len",     ctypes.c_ushort)]
 
 class VARIABLE_INFO_ARRAY(ctypes.Structure):
-    #_pack=2
     _fields_ = [('array_size', ctypes.c_short),
                 ('ARRAY',      ctypes.POINTER(VARIABLE_INFO))]
 
@@ -90,18 +87,18 @@ class VARIABLE_INFO_ARRAY(ctypes.Structure):
         elems = (VARIABLE_INFO * num_of_structs)()
         self.ARRAY = ctypes.cast(elems, ctypes.POINTER(VARIABLE_INFO))
         self.array_size = num_of_structs
+
 class VARIABLE_INFO_LIST(ctypes.Structure):
-    #_pack=2
     _fields_ = [("countVariables", ctypes.c_uint),
                 ("varInfo", ctypes.POINTER(VARIABLE_INFO))]
+
 class VARIABLE_BUFFER(ctypes.Structure):
-    #_pack=2
     _fields_ = [("varHandle", ctypes.c_void_p),
                 ("bufferLen", ctypes.c_uint),
                 ("buffer",    ctypes.c_char_p),
                 ("lastError", ctypes.c_long)]
+
 class RES_EXTPING_R(ctypes.Structure):
-    #_pack=2
     _fields_ = [("RetCode",    ctypes.c_int32),
                 ("ProdNb",     (ctypes.c_char * MIO_PRODNBLEN_A)),
                 ("VersCode",   (ctypes.c_uint32 * 3)),
@@ -151,19 +148,17 @@ class RES_LOGIN2_R(ctypes.Structure):
     _fields_ = [("RetCode",         ctypes.c_int32),
                 ("SecurityLevel",   ctypes.c_uint32),
                 ("Spare1",          ctypes.c_uint32),
-                ("UserAcc",         ctypes.POINTER(RES_USER_ACCESS)),
+                ("UserAcc",         RES_USER_ACCESS),
                 ("AuthLen",         ctypes.c_uint32),
                 ("Authent",         (ctypes.c_uint8 * 128)),
                 ("UserData",        (ctypes.c_uint8 * 128)),
                 ("Reserv",          (ctypes.c_uint8 * 128))]
     
 class TARGET_INFO(ctypes.Structure):
-    #_pack=2
     _fields_ = [("extPingR", RES_EXTPING_R),
                 ("hostAddr", ctypes.c_char * 16)]
 
 class TARGET_INFO_ARRAY(ctypes.Structure):
-    #_pack=2
     _fields_ = [('array_size', ctypes.c_short),
                 ('ARRAY',      ctypes.POINTER(TARGET_INFO))]
 
@@ -194,7 +189,6 @@ class MIO_GETCDINF_R(ctypes.Structure):
     _fields_ = [("RetCode", ctypes.c_int32),
                 ("Inf", MIO_CARDINF)]
 
-
 class tm(ctypes.Structure):
     _fields_ = [("tm_sec", ctypes.c_int32),
                 ("tm_min", ctypes.c_int32),
@@ -212,11 +206,9 @@ class Ver(ctypes.Structure):
                 ("SubMin", ctypes.c_uint8),
                 ("Type", ctypes.c_uint8)]
                 
-
 class MIO_VERS(ctypes.Structure):
     _fields_ = [("Ver", Ver),
                 ("Ver32", ctypes.c_uint32)]
-
 
 class MIO_EXTCDINF(ctypes.Structure):
     _fields_ = [("CardNb", ctypes.c_uint32),
@@ -256,7 +248,6 @@ class MIO_EXTCDINF(ctypes.Structure):
                 ("Fware", MIO_VERS),
                 ("ExStateInfo", ctypes.c_uint32)]
 
-
 class MIO_GETEXTCDINF_C(ctypes.Structure):
     _fields_ = [("CardNb", ctypes.c_uint32),]
 
@@ -287,21 +278,28 @@ class INF_CARDINFOLST_R(ctypes.Structure):
                 ("NbOfObj", ctypes.c_uint32),
                 ("Inf", INF_CARDINFO)]
 
-       
 #pyCom ExceptionTypes:
 class PyComException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
+
 class PyComTypeException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
+        
 class PyCom:
     """
-    Instance loading the M1COM DLL
+    Instance loading the M1COM DLL.
+
+    Usage:
+
+    >>> dll = PyCom()
+    >>> dll.getDllVersion()
+    'V1.14.99 Release'
     """
     def __init__(self, dllpath = ""):
 
@@ -317,6 +315,8 @@ class PyCom:
             searchPath = sys.path
             searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
             searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
+            searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
+            searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
         
             # Look for the correct m1com dll in system paths
             for syspath in sys.path:
@@ -366,7 +366,7 @@ class PyCom:
         self.M1C_GetVersion.argtypes = [ctypes.c_char_p, ctypes.c_uint]
         
         #only load config if version matches:
-        latestVersion = 'V1.11.99 Release'
+        latestVersion = 'V1.14.99 Release'
         currentVersion = self.getDllVersion()
         if(currentVersion != latestVersion):
             raise PyComException("pyCom Error: Wrong Dll Version expected Version: " + str(latestVersion) + " version is: " + str(currentVersion))
@@ -715,25 +715,61 @@ class PyCom:
         self.RFS_Remove.restype  = ctypes.c_long
         
     def getDllVersion(self):
-        #version = ctypes.c_char_p("                                        ")    #40byte buffer
+        """Return the DLL version of the m1com.dll.
+
+        >>> dll = PyCom()
+        >>> dll.getDllVersion()
+        'V1.14.99 Release'
+        """
+
         version = ctypes.c_char_p(40*"".encode('utf-8'))    #40byte buffer
         self.M1C_GetVersion(version, 40)
         return version.value.decode("utf-8")
 
 class M1Controller:
-    #UnitTests: yes
-    def __init__(self, pycom, ip='192.0.1.230', username='M1', password='bachmann'):
+    """
+    The M1Controller class.
+
+    Usage:
+
+    >>> mh = M1Controller(ip='169.254.141.136')
+    >>> mh.connect(timeout=3000)
+    >>> mh.getSessionLiveTime()
+    0
+    >>> mh.getLoginInfo()                                                                       # doctest: +SKIP
+    >>> mh.renewConnection()
+    >>> mh.getNumberofSwModules()
+    9
+    >>> mh.getSwModuleByName('RES')                                                             # doctest: +SKIP
+    >>> mh.getListofSwModules()                                                                 # doctest: +SKIP
+    >>> mh.getListofHwModules()                                                                 # doctest: +SKIP
+    >>> mh.getDrvId(7)                                                                          # doctest: +SKIP
+    >>> mh.getCardInfo(7)                                                                       # doctest: +SKIP
+    >>> mh.getCardInfoExt(7)                                                                    # doctest: +SKIP
+    >>> mh.copyFromTarget('/cfc0/mconfig.ini', 'localCopyMconfig.ini')                          # doctest: +SKIP
+    >>> mh.copyToTarget('localCopyMconfig.ini', '/cfc0/localCopyMconfig.ini')                   # doctest: +SKIP
+    >>> mh.copyRemote('/cfc0/localCopyMconfig.ini', '/cfc0/localCopyMconfig2.ini')              # doctest: +SKIP
+    >>> mh.remove('/cfc0/localCopyMconfig.ini')                                                 # doctest: +SKIP
+    >>> mh.resetAll()                                                                           # doctest: +SKIP
+    >>> mh.reboot()                                                                             # doctest: +SKIP
+    >>> mh.sendCall("MOD", 134, ctypes.c_int32(0), ctypes.c_int32(0), timeout=3000, version=2)  # doctest: +SKIP
+    c_long(0)
+    >>> mh.disconnect()
+    0
+    """
+
+    def __init__(self, pycom=PyCom(), ip='169.254.141.136', username='M1', password='bachmann'):
         self._pycom = pycom
         self._ip = ip
         self._username = username
         self._password = password
         self._ctrlHandle = None
-    #UnitTests: used
+    
     def getCtrlHandle(self):
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Can't access Controller["+self._ip+"] when not connected!"))
         return self._ctrlHandle
-    #UnitTests: yes
+    
     def connect(self, protocol=PROTOCOL_TCP, timeout=1000):
         if(self._ctrlHandle == None):
             self._ctrlHandle = self._pycom.TARGET_Create(self._ip.encode('utf-8'), protocol, timeout)
@@ -741,7 +777,7 @@ class M1Controller:
                 raise PyComException(("pyCom Error: Can't connect to "+self._ip+" through '"+repr(protocol)+"' with username:"+self._username))
         else:
             raise PyComException(("pyCom Error: Should not connect to a already connected Target! (call disconnect first!)"))
-    #UnitTests: no
+    
     def getSessionLiveTime(self):
         vartime = ctypes.c_uint(0)
         if(self._ctrlHandle == None):
@@ -750,7 +786,7 @@ class M1Controller:
             if(self._pycom.TARGET_GetSessionLiveTime(self._ctrlHandle, ctypes.byref(vartime)) != OK):
                 raise PyComException(("pyCom Error: Cannot get session live time of Controller["+self._ip+"]"))
         return vartime.value
-    #UnitTests: no
+    
     def getLoginInfo(self):
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
@@ -781,32 +817,32 @@ class M1Controller:
                 if(self._pycom.TARGET_GetLoginInfo(self._ctrlHandle, ctypes.pointer(recv)) != OK):
                     raise PyComException(("pyCom Error: Cannot get login info of Controller["+self._ip+"]"))
         return recv
-    #UnitTests: no
+    
     def renewConnection(self):
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
         elif(self._pycom.TARGET_RenewConnection(self._ctrlHandle) != OK):
             raise PyComException(("pyCom Error: Cannot renew connection of Controller['"+self._ip+"']"))
-    #UnitTests: yes
+    
     def disconnect(self):
         ret = self._pycom.TARGET_Close(self.getCtrlHandle())
         self._pycom.TARGET_Dispose(self.getCtrlHandle())
         self._ctrlHandle = None
         return ret
-    #UnitTests: yes
+
     def getNumberofSwModules(self):
         ctrlHandle = self.getCtrlHandle()
         countSwModules = ctypes.c_ushort(0)
         if(self._pycom.TARGET_GetCountModules(ctrlHandle, ctypes.byref(countSwModules)) != OK):
             raise PyComException(("pyCom Error: Can't get Number of Modules by Controller['"+self._ip+"']"))
         return countSwModules.value
-    #UnitTests: yes
+    
     def getSwModuleByName(self, name):
         try:
-            return self.getListofSwModules()[name.encode()]
+            return self.getListofSwModules()[name]
         except KeyError:
             raise PyComException(("pyCom Error: Module: " + name + " is not present!"))
-    #UnitTests: used
+    
     def getListofSwModules(self):
         countSwModules = self.getNumberofSwModules()
         myModuleNames = MODULE_NAME_ARRAY(countSwModules)
@@ -816,12 +852,12 @@ class M1Controller:
         if (self._pycom.TARGET_GetModules(self.getCtrlHandle(), countSwModules, myModuleList) != OK):
             raise PyComException(("pyCom Error: Can't get Software ModuleList from Controller["+self._ip+"]"))
         for num in range(0, countSwModules):
-            py_modulelist[myModuleNames.ARRAY[num].name] = _M1SwModule(self._pycom, myModuleNames.ARRAY[num].name, self)
+            py_modulelist[myModuleNames.ARRAY[num].name.decode()] = _M1SwModule(self._pycom, myModuleNames.ARRAY[num].name, self)
         return py_modulelist
 
-
     def getDrvId(self, CardNb):
-        """get DrvId from CardNb
+        """
+        Get DrvId from CardNb.
         """        
         
         send = MIO_GETDRV_C()
@@ -829,24 +865,23 @@ class M1Controller:
         recv = MIO_GETDRV_R()
         
         mio = self._pycom.TARGET_CreateModule(self._ctrlHandle, b"MIO")
-        print("Connect: " + str(self._pycom.MODULE_Connect(mio)))
+        self._pycom.MODULE_Connect(mio)
         
-
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(100), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
-            raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
+            raise PyComException(("m1com Error: Can't send procedure number 100 to Controller['"+self._ip+"']"))
         
         return recv.DrvId
     
-
     def getCardInfo(self, CardNb):
-        """get card information from CardNb
+        """
+        Get card information from CardNb.
         """        
         send = MIO_GETDRV_C()
         send.CardNb = CardNb
         recv = MIO_GETDRV_R() 
 
         mio = self._pycom.TARGET_CreateModule(self._ctrlHandle, b"MIO")
-        print("Connect: " + str(self._pycom.MODULE_Connect(mio)))
+        self._pycom.MODULE_Connect(mio)
 
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(100), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
@@ -860,9 +895,9 @@ class M1Controller:
       
         return recv
     
-
     def getCardInfoExt(self, CardNb):
-        """get extended card information from CardNb
+        """
+        Get extended card information from CardNb.
         """        
         send = MIO_GETEXTCDINF_C()
         send.CardNb = CardNb
@@ -874,12 +909,18 @@ class M1Controller:
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(136), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
 
+        cardInfoExt = {}
+        for name in recv.Inf._fields_:
+            try:
+                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0]).decode()})
+            except:
+                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0])})
 
-        return { name[0]:getattr(recv.Inf, name[0]) for name in recv.Inf._fields_}.copy()
+        return cardInfoExt.copy()
 
-    
     def getListofHwModules(self):
-        """get hardware list from target
+        """
+        Get hardware list from target.
         """
         hwmodulelist = []
         
@@ -900,7 +941,6 @@ class M1Controller:
                 break
                 
         return hwmodulelist.copy()
-
 
     def copyFromTarget(self, remoteFileName, localFileName):
         if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), localFileName.encode(), remoteFileName.encode()) != OK):
@@ -933,28 +973,24 @@ class M1Controller:
         recv = ctypes.c_int32(0)        
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(142), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
             raise PyComException(("m1com Error: Can't reset all models on Controller['"+self._ip+"']"))
-    
-    def sendCall(self, moduleName, proc, send, timeout=1000, version=2):
-        #M1COM SINT32 MODULE_SendCall(M1C_H_MODULE moduleHandle, UINT32 proc, UINT32 version, const PVOID send, UINT16 sendSize, PVOID recv, UINT16 recvSize, UINT32 timeout);
+
+    def sendCall(self, moduleName, proc, send, recv, timeout=1000, version=2):
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode())        
         self._pycom.MODULE_Connect(mod)
-        recv = 0
-        sendCall = ctypes.c_int32(send)
-        recvCall = ctypes.c_int32(recv)
-        sendSize = ctypes.c_ushort(ctypes.sizeof(sendCall))
-        recvSize = ctypes.c_ushort(ctypes.sizeof(recvCall))
+        sendSize = ctypes.c_ushort(ctypes.sizeof(send))
+        recvSize = ctypes.c_ushort(ctypes.sizeof(recv))
         returnSendCall = self._pycom.MODULE_SendCall(
             mod, 
             ctypes.c_uint(proc), 
             ctypes.c_uint(version), 
-            ctypes.pointer(sendCall), 
+            ctypes.pointer(send), 
             sendSize, 
-            ctypes.pointer(recvCall), 
+            ctypes.pointer(recv), 
             recvSize, 
             ctypes.c_uint(timeout) )
         if(returnSendCall != OK):
             raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']"))
-        return recvCall
+        return recv
 
 class M1TargetFinder:
     def __init__(self, pycom, maxdevices=50):
@@ -1015,7 +1051,7 @@ class _M1SwModule:
         self._modHandle = None
     def getModHandle(self):
         if(self._modHandle == None):
-            raise PyComException(("pyCom Error: Can't access Module["+self.name+"] on Controller["+self._ip+"] when not attached!"))
+            raise PyComException(("pyCom Error: Can't access Module["+self.name+"] on Controller["+self.m1ctrl._ip+"] when not attached!"))
         return self._modHandle
     def attach(self):
         self._modHandle = self._pycom.TARGET_CreateModule(self.m1ctrl.getCtrlHandle(), self.name)
@@ -1057,7 +1093,7 @@ class _SVIVariable:
             raise PyComException(("pyCom Error: Can't get Info from SviVariable["+self.name+"] of Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]!"))
         return self._varInfo
     def attach(self):
-        self._varHandle = self._pycom.TARGET_CreateVariable(self._m1ctrl.getCtrlHandle(), self.name)
+        self._varHandle = self._pycom.TARGET_CreateVariable(self._m1ctrl.getCtrlHandle(), self.name.encode())
         if(self._varHandle == None):
             raise PyComException(("pyCom Error: Can't allocate SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]"))
         if(self._pycom.TARGET_InitVariables(self._m1ctrl.getCtrlHandle(), self._varHandle, 1) <= 0):
@@ -1237,3 +1273,9 @@ class _SVIVariable:
         self._pycom.VARIABLE_GetState(self._varHandle, ctypes.pointer(state))
         return state.value
     
+if __name__ == "__main__":
+
+    #help(M1Controller())
+
+    import doctest
+    doctest.testmod(verbose=False)
