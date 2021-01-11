@@ -320,7 +320,7 @@ class PyCom:
         
             # Look for the correct m1com dll in system paths
             for syspath in sys.path:
-                for root, dirs, files in os.walk(syspath):
+                for root, _, files in os.walk(syspath):
                     for file in files:
                         if file == dllname:
 
@@ -734,11 +734,11 @@ class M1Controller:
 
     >>> mh = M1Controller(ip='169.254.141.136')
     >>> mh.connect(timeout=3000)
-    >>> mh.getSessionLiveTime()
+    >>> mh.getSessionLiveTime()                                                                 # doctest: +SKIP
     0
     >>> mh.getLoginInfo()                                                                       # doctest: +SKIP
     >>> mh.renewConnection()
-    >>> mh.getNumberofSwModules()
+    >>> mh.getNumberofSwModules()                                                               # doctest: +SKIP
     9
     >>> mh.getSwModuleByName('RES')                                                             # doctest: +SKIP
     >>> mh.getListofSwModules()                                                                 # doctest: +SKIP
@@ -766,11 +766,21 @@ class M1Controller:
         self._ctrlHandle = None
     
     def getCtrlHandle(self):
+        """
+        Get control handle from target.
+        """
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Can't access Controller["+self._ip+"] when not connected!"))
         return self._ctrlHandle
     
     def connect(self, protocol=PROTOCOL_TCP, timeout=1000):
+        """
+        Make a connection with the target using the following protocols:
+        TCP:    PROTOCOL_TCP
+        QSOAP:  PROTOCOL_QSOAP
+        SSL:    PROTOCOL_SSL
+        UDP:    PROTOCOL_UDP
+        """
         if(self._ctrlHandle == None):
             self._ctrlHandle = self._pycom.TARGET_Create(self._ip.encode('utf-8'), protocol, timeout)
             if(self._pycom.TARGET_Connect(self._ctrlHandle, self._username.encode('utf-8'), self._password.encode('utf-8'), self._pycom.servicename.encode('utf-8')) != OK):
@@ -779,6 +789,10 @@ class M1Controller:
             raise PyComException(("pyCom Error: Should not connect to a already connected Target! (call disconnect first!)"))
     
     def getSessionLiveTime(self):
+        """
+        Get session live time in seconds of the connection to the target if configured.
+        renewConnection has to be called before the session expires.
+        """
         vartime = ctypes.c_uint(0)
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
@@ -788,6 +802,10 @@ class M1Controller:
         return vartime.value
     
     def getLoginInfo(self):
+        """
+        Get information about the current login session.
+        MSYS Version >= 3.70 on the target is required.
+        """
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
         else:
@@ -819,18 +837,30 @@ class M1Controller:
         return recv
     
     def renewConnection(self):
+        """
+        Renews the connection to the target.
+        If Session Life Time is configured for the target the connection session is renewed with this function.
+        """
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
         elif(self._pycom.TARGET_RenewConnection(self._ctrlHandle) != OK):
             raise PyComException(("pyCom Error: Cannot renew connection of Controller['"+self._ip+"']"))
     
     def disconnect(self):
+        """
+        Closes all connections to the target.
+        The communication to the target is stopped and all module handles of the target are disposed!
+        If a login has been performed, logout is called. 
+        """
         ret = self._pycom.TARGET_Close(self.getCtrlHandle())
         self._pycom.TARGET_Dispose(self.getCtrlHandle())
         self._ctrlHandle = None
         return ret
 
     def getNumberofSwModules(self):
+        """
+        Get the count of all modules on the target.
+        """
         ctrlHandle = self.getCtrlHandle()
         countSwModules = ctypes.c_ushort(0)
         if(self._pycom.TARGET_GetCountModules(ctrlHandle, ctypes.byref(countSwModules)) != OK):
@@ -838,12 +868,18 @@ class M1Controller:
         return countSwModules.value
     
     def getSwModuleByName(self, name):
+        """
+        Get the software module information of the target by name.
+        """
         try:
             return self.getListofSwModules()[name]
         except KeyError:
             raise PyComException(("pyCom Error: Module: " + name + " is not present!"))
     
     def getListofSwModules(self):
+        """
+        Get a list of all software module names of the target 
+        """
         countSwModules = self.getNumberofSwModules()
         myModuleNames = MODULE_NAME_ARRAY(countSwModules)
         myModuleList = MODULE_LIST()
@@ -852,7 +888,7 @@ class M1Controller:
         if (self._pycom.TARGET_GetModules(self.getCtrlHandle(), countSwModules, myModuleList) != OK):
             raise PyComException(("pyCom Error: Can't get Software ModuleList from Controller["+self._ip+"]"))
         for num in range(0, countSwModules):
-            py_modulelist[myModuleNames.ARRAY[num].name.decode()] = _M1SwModule(self._pycom, myModuleNames.ARRAY[num].name, self)
+            py_modulelist[myModuleNames.ARRAY[num].name.decode()] = _M1SwModule(self._pycom, myModuleNames.ARRAY[num].name.decode(), self)
         return py_modulelist
 
     def getDrvId(self, CardNb):
@@ -911,9 +947,9 @@ class M1Controller:
 
         cardInfoExt = {}
         for name in recv.Inf._fields_:
-            try:
+            if type(getattr(recv.Inf, name[0])) == bytes:
                 cardInfoExt.update({name[0]:getattr(recv.Inf, name[0]).decode()})
-            except:
+            else:
                 cardInfoExt.update({name[0]:getattr(recv.Inf, name[0])})
 
         return cardInfoExt.copy()
@@ -932,7 +968,7 @@ class M1Controller:
         info = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"INFO")
         self._pycom.MODULE_Connect(info)
 
-        for card in range(send.LastIdx):
+        for _ in range(send.LastIdx):
             if(self._pycom.MODULE_SendCall(info, ctypes.c_uint(120), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
                 raise PyComException(("m1com Error: Can't send procedure number 120 to Controller['"+self._ip+"']"))
             hwmodulelist.append(self.getCardInfoExt(recv.Inf.CardNb))
@@ -943,22 +979,37 @@ class M1Controller:
         return hwmodulelist.copy()
 
     def copyFromTarget(self, remoteFileName, localFileName):
+        """
+        Copy a file from the target.
+        """
         if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), localFileName.encode(), remoteFileName.encode()) != OK):
             raise PyComException(("pyCom Error: Can't get copy " + remoteFileName + " from Controller['"+self._ip+"']"))
 
     def copyToTarget(self, localFileName, remoteFileName):
+        """
+        Copy a local file to the target.
+        """
         if(self._pycom.RFS_CopyToTarget(self.getCtrlHandle(), remoteFileName.encode(), localFileName.encode()) != OK):
-            raise PyComException(("pyCom Error: Can't copy " + remoteFileName + " to Controller['"+self._ip+"']"))
+            raise PyComException(("pyCom Error: Can't copy " + localFileName + " to Controller['"+self._ip+"']"))
 
     def copyRemote(self, srcFile, destFile):
+        """
+        Copy a file on the target and save it somewhere else on the target.
+        """
         if(self._pycom.RFS_CopyRemote(self.getCtrlHandle(), destFile.encode(), srcFile.encode()) != OK):
             raise PyComException(("pyCom Error: Can't copy " + destFile + " to " + srcFile + " on Controller['"+self._ip+"']"))
 
     def remove(self, remoteFileName):
+        """
+        Remove a file on the target.
+        """
         if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode()) != OK):
             raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " on Controller['"+self._ip+"']"))
     
     def reboot(self):
+        """
+        Reboot the target.
+        """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
         self._pycom.MODULE_Connect(mod)
         send = ctypes.c_int32(0)
@@ -967,6 +1018,9 @@ class M1Controller:
             raise PyComException(("m1com Error: Can't send procedure number " + mod + " to Controller['"+self._ip+"']"))
 
     def resetAll(self):
+        """
+        Reset all applications on the target.
+        """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
         self._pycom.MODULE_Connect(mod)
         send = ctypes.c_int32(0)
@@ -975,6 +1029,9 @@ class M1Controller:
             raise PyComException(("m1com Error: Can't reset all models on Controller['"+self._ip+"']"))
 
     def sendCall(self, moduleName, proc, send, recv, timeout=1000, version=2):
+        """
+        Send a custom SMI call to the target.
+        """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode())        
         self._pycom.MODULE_Connect(mod)
         sendSize = ctypes.c_ushort(ctypes.sizeof(send))
@@ -993,12 +1050,24 @@ class M1Controller:
         return recv
 
 class M1TargetFinder:
-    def __init__(self, pycom, maxdevices=50):
+    """
+    Look for targets on the network and return their information.
+    Usage:
+
+    >>> mt = m1com.M1TargetFinder()                                                             # doctest: +SKIP
+    >>> mt.TargetBroadcastSmiPing(timeout=3000)                                                 # doctest: +SKIP
+    >>> mt.TargetSmiPing(ip='169.254.141.136', timeout=3000)                                    # doctest: +SKIP
+    """
+
+    def __init__(self, pycom=PyCom(), maxdevices=50):
         self._pycom = pycom
         self._maxdevices = maxdevices
         self._targets = {}
     
     def TargetBroadcastSmiPing(self, timeout=1000):
+        """
+        Look for targets on the network and return their information.
+        """
         targetsInfo = (TARGET_INFO * self._maxdevices)()
         founddevices = self._pycom.TARGET_BroadcastSmiPing(timeout, targetsInfo, self._maxdevices)
 
@@ -1016,19 +1085,24 @@ class M1TargetFinder:
                             pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword)
                     targetInfo['extPingR'] = pingInfo
                 else:
-                    targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem)
+                    if type(getattr(targetsInfo[dev], targetinfoitem)) == bytes:
+                        targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem).decode()
+                    else:
+                        targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem)
             self._targets[targetsInfo[dev].extPingR.ProdNb.decode()] = targetInfo
                     
         return self._targets.copy()
 
-    def TargetSmiPing(self, addr='192.0.1.230', timeout=3000, protocol=PROTOCOL_TCP):
+    def TargetSmiPing(self, ip='169.254.141.136', timeout=3000, protocol=PROTOCOL_TCP):
+        """
+        Ping target and return infomation about the target.
+        """
         buffer = RES_EXTPING_R()
         pingInfo = {}
         keywords = [keyword for keyword in dir(buffer) if not keyword.startswith('_')]
 
-        self._pycom.TARGET_SmiPing(addr.encode('utf-8'), timeout, protocol, buffer)
+        self._pycom.TARGET_SmiPing(ip.encode('utf-8'), timeout, protocol, buffer)
 
-        
         for keyword in keywords:
             if type(getattr(buffer, keyword)) == bytes:
                 pingInfo[keyword] = getattr(buffer, keyword).decode()                        
@@ -1038,31 +1112,70 @@ class M1TargetFinder:
 
         return self._smitargetsInfo.copy()
 
-
 class _M1SwModule:
+    """
+    The _M1SwModule class.
+
+    Usage:
+
+    >>> dll = PyCom()
+    >>> mh = M1Controller(pycom=dll, ip='169.254.141.136')
+    >>> mh.connect(timeout=3000)
+    >>> swModule = _M1SwModule(dll, 'RES', mh)
+    >>> swModule.getModHandle()                                                                 # doctest: +SKIP
+    >>> swModule.getNumberofSviVariables()                                                      # doctest: +SKIP
+    371
+    >>> swModule.getListofSviVariables()                                                        # doctest: +SKIP
+    >>> mh.disconnect()
+    0
+    """
+
     def __init__(self, pycom, name, m1controller):
         self._pycom = pycom
         self.name = name
         self.m1ctrl = m1controller
         self._modHandle = None
         self.attach()
+
     def detach(self):
+        """
+        Performs cleanup of the software module.
+        Note: RES module can not be disposed with this function.
+        The handle is no longer valid after calling this function.
+        If other threads use the module the caller has to stop them before disposing the module!
+        """
         self._pycom.MODULE_Dispose(self._modHandle)
         self._modHandle = None
+
     def getModHandle(self):
+        """
+        Get module handle from target.
+        """
         if(self._modHandle == None):
             raise PyComException(("pyCom Error: Can't access Module["+self.name+"] on Controller["+self.m1ctrl._ip+"] when not attached!"))
         return self._modHandle
+
     def attach(self):
-        self._modHandle = self._pycom.TARGET_CreateModule(self.m1ctrl.getCtrlHandle(), self.name)
+        """
+        Creates a handle to a software module. This function is already automatically called after initializing a software module.
+        """
+        self._modHandle = self._pycom.TARGET_CreateModule(self.m1ctrl.getCtrlHandle(), self.name.encode())
         if(self._pycom.MODULE_Connect(self._modHandle) != OK):
             raise PyComException(("pyCom Error: Can't attach to SwModule:"+self.name+" on Controller["+self.m1ctrl._ip+"]"))
+
     def getNumberofSviVariables(self):
+        """
+        Get the count of variables of the software module.
+        """
         varcount = ctypes.c_uint(0)
         if (self._pycom.MODULE_GetCountVariables(self.getModHandle(), ctypes.byref(varcount)) != OK):
             raise PyComException(("pyCom Error: Can't get number of svi Variables of SwModule:"+self.name+" on Controller["+self.m1ctrl._ip+"]"))
         return varcount.value
-    def svi_getListofSviVariables(self):
+
+    def getListofSviVariables(self):
+        """
+        Get a list (in dictonary format) of all variables of the software module.
+        """
         nbsvivars = self.getNumberofSviVariables()
         myVarEntrys = VARIABLE_INFO_ARRAY(nbsvivars)
         myVarList = VARIABLE_INFO_LIST()
@@ -1071,10 +1184,31 @@ class _M1SwModule:
         if(self._pycom.MODULE_GetVariables(self.getModHandle(), nbsvivars, myVarList) != OK):
             raise PyComException(("pyCom Error: Can't get SviVariable List from Module["+self.name+"] on Controller["+self.m1ctrl._ip+"]"))
         for num in range(0, nbsvivars):
-            py_svivarlist[myVarEntrys.ARRAY[num].name] = _SVIVariable(self._pycom, myVarEntrys.ARRAY[num].name, self)
+            py_svivarlist[myVarEntrys.ARRAY[num].name.decode()] = _SVIVariable(self._pycom, myVarEntrys.ARRAY[num].name.decode(), self)
         return py_svivarlist
 
 class _SVIVariable:
+    """
+    The _SVIVariable class.
+
+    Usage:
+
+    >>> dll = PyCom()
+    >>> mh = M1Controller(pycom=dll, ip='169.254.141.136')
+    >>> mh.connect(timeout=3000)
+    >>> swModule = _M1SwModule(dll, 'RES', mh)
+    >>> sviVariable = _SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+    >>> sviVariable.getVarHandle()                                                              # doctest: +SKIP
+    >>> sviVariable.getVarInfo()                                                                # doctest: +SKIP
+    >>> sviVariable.updateVarInfo()                                                             # doctest: +SKIP
+    >>> sviVariable.read()                                                                      # doctest: +SKIP
+    40
+    >>> sviVariable.write(22)                                                                   # doctest: +SKIP
+    >>> sviVariable.getConnectionState()
+    0
+    >>> mh.disconnect()
+    0
+    """
     def __init__(self, pycom, name, module):
         self._pycom = pycom
         self.name = name
@@ -1084,27 +1218,53 @@ class _SVIVariable:
         self._varInfo = None
         self.svi_Buffer = None
         self.attach()
+
+    def detach(self):
+        """
+        Disposes the variable handle.
+        """
+        self._pycom.VARIABLE_Dispose(self._varHandle)
+        self._varHandle = None
+
     def getVarHandle(self):
+        """
+        Get the variable handle from target.
+        """
         if(self._varHandle == None):
             raise PyComException(("pyCom Error: Can't access SviVariable["+self.name+"] of Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] when not attached!"))
         return self._varHandle
+
     def getVarInfo(self):
+        """
+        Get information about the variable from the target.
+        """
         if(self._varInfo == None):
             raise PyComException(("pyCom Error: Can't get Info from SviVariable["+self.name+"] of Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]!"))
         return self._varInfo
+
     def attach(self):
+        """
+        Creates a handle to a variable and initializes it. This function is already automatically called after initializing a software module.
+        """
         self._varHandle = self._pycom.TARGET_CreateVariable(self._m1ctrl.getCtrlHandle(), self.name.encode())
         if(self._varHandle == None):
             raise PyComException(("pyCom Error: Can't allocate SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]"))
         if(self._pycom.TARGET_InitVariables(self._m1ctrl.getCtrlHandle(), self._varHandle, 1) <= 0):
             raise PyComException(("pyCom Error: Can't attach SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]"))
         self.updateVarInfo()
+
     def updateVarInfo(self):
-        #~ Get SVI Info:
+        """
+        Update the variable information.
+        """
         self._varInfo = VARIABLE_INFO()
         if(self._pycom.VARIABLE_GetInfo(self.getVarHandle(), ctypes.pointer(self._varInfo)) != OK):
             raise PyComException("pyCom Error: Can't update Informations of SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]")
+    
     def read(self):
+        """
+        Read a single SVI variable from the target.
+        """
         if(self.getConnectionState() != ONLINE):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
         sviBuffer = VARIABLE_BUFFER()
@@ -1188,7 +1348,11 @@ class _SVIVariable:
             return value
         else:
             return value.value
+
     def write(self, data):
+        """
+        Write a single SVI variable to the target.
+        """
         if(self.getConnectionState() != ONLINE):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
         sviBuffer = VARIABLE_BUFFER()
@@ -1268,14 +1432,22 @@ class _SVIVariable:
         
         if self._pycom.TARGET_WriteVariables(self._m1ctrl.getCtrlHandle(), ctypes.pointer(sviBuffer), 1) < 0:
             raise PyComException("pyCom Error: could not write Svi Variable:" + str(self.name))
+        
     def getConnectionState(self):
+        """
+        Get the connection state of the variable.
+        """
         state = ctypes.c_uint(0)
         self._pycom.VARIABLE_GetState(self._varHandle, ctypes.pointer(state))
         return state.value
     
 if __name__ == "__main__":
 
-    #help(M1Controller())
+    #help(PyCom)
+    #help(M1Controller)
+    #help(M1TargetFinder)
+    #help(_M1SwModule)
+    #help(_SVIVariable)
 
     import doctest
     doctest.testmod(verbose=False)
