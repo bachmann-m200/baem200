@@ -1124,6 +1124,7 @@ class Test_SVIVariable(unittest.TestCase):
             try:
                 for key in writeVariables:
                     sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+                    sviVariable2 = m1com._SVIVariable('SVIWRITE/' + key, swModule)
                     if writeVariables[key] == bool:
                         value = [True, False]
                     elif writeVariables[key] == int:
@@ -1137,16 +1138,23 @@ class Test_SVIVariable(unittest.TestCase):
                         print('Unsupported type: ' + str(writeVariables[key]) + ' for ' + str(key))
                     sviVariable.write(value[0])
                     sviValue = sviVariable.read()
+                    sviValue2 = sviVariable2.read()
                     self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
+                    self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
                     if type(sviValue) == float:
                         self.assertAlmostEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
+                        self.assertAlmostEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
                     else:
                         self.assertEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
+                        self.assertEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
 
                     sviVariable.write(value[1])
                     sviValue = sviVariable.read()
+                    sviValue2 = sviVariable2.read()
                     self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
                     self.assertEqual(sviValue, value[1], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(sviValue2, value[1], msg='for ' + key + '=' + str(value[1]))
 
             except Exception as e:
                 ErrorMsg = e

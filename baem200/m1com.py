@@ -544,7 +544,7 @@ class PyCom:
         #TODO:
         #SINT32 TARGET_ReadVariable(M1C_H_TARGET targetHandle, M1C_H_VARIABLE variableHandle, VOID* buffer, UINT32 bufferSize);
         self.TARGET_ReadVariable = m1Dll.TARGET_ReadVariable
-        self.TARGET_ReadVariable.argtypes = [ctypes.c_void_p, VARIABLE_BUFFER, ctypes.c_uint]
+        self.TARGET_ReadVariable.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_ReadVariable.restype  = ctypes.c_long
         
         #UnitTested: no
@@ -1894,6 +1894,7 @@ class _SVIVariable:
     >>> sviVariable.write(22)                                                                   # doctest: +SKIP
     >>> sviVariable.getConnectionState()
     0
+    >>> sviVariable.detach()
     >>> mh.disconnect()
     0
     """
@@ -1903,7 +1904,7 @@ class _SVIVariable:
         self._module = module
         self._varHandle = None
         self._varInfo = None
-        self.svi_Buffer = None
+        self._bufferLen = None
         self.attach()
 
     def detach(self):
@@ -1912,6 +1913,8 @@ class _SVIVariable:
         """
         self._m1ctrl._pycom.VARIABLE_Dispose(self._varHandle)
         self._varHandle = None
+        self._varInfo = None
+        self._bufferLen = None
 
     def getVarHandle(self):
         """
@@ -1947,6 +1950,7 @@ class _SVIVariable:
         self._varInfo = VARIABLE_INFO()
         if(self._m1ctrl._pycom.VARIABLE_GetInfo(self.getVarHandle(), ctypes.pointer(self._varInfo)) != OK):
             raise PyComException("pyCom Error: Can't update Informations of SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]")
+        self._bufferLen = self._m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._varInfo))
     
     def read(self):
         """
@@ -1954,22 +1958,18 @@ class _SVIVariable:
         """
         if(self.getConnectionState() != ONLINE):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
-        sviBuffer = VARIABLE_BUFFER()
-        sviBuffer.varHandle = self.getVarHandle()
-        sviBuffer.bufferLen = self._m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._varInfo))
+        
         value = None
         valueType = None
         identifiyer = self._varInfo.format & 0x0f
         if not(self._varInfo.format & SVI_F_OUT):
             raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not read able!")
-        #duplicated in read and write to make it easiely thread safe
-        #and avoid corruption through Garbage Collector!
         if(self._varInfo.format & SVI_F_BLK):
             if(identifiyer == SVI_F_CHAR8):
-                value = (ctypes.c_char * sviBuffer.bufferLen)() #allocate buffer
+                value = (ctypes.c_char * self._bufferLen)() #allocate buffer
                 valueType = str
             elif (identifiyer == SVI_F_CHAR16):
-                value = (ctypes.c_wchar * sviBuffer.bufferLen)() #allocate buffer
+                value = (ctypes.c_wchar * self._bufferLen)() #allocate buffer
                 valueType = str
             elif(identifiyer == SVI_F_UINT64):
                 value = ctypes.c_ulonglong()
@@ -2045,10 +2045,10 @@ class _SVIVariable:
                 valueType = float
             else:
                 raise PyComException("pyCom Error: unknown SVI Type!"+str(self._varInfo.format)+" of Variable:"+self.name)
-        sviBuffer.buffer = ctypes.cast(ctypes.pointer(value), ctypes.c_char_p)
-        ret = self._m1ctrl._pycom.TARGET_ReadVariables(self._m1ctrl.getCtrlHandle(), ctypes.pointer(sviBuffer), 1)
-        if ret < 0:
-            raise PyComException("pyCom Error: could not read Svi Variable:"+self.name)
+
+        ret = self._m1ctrl._pycom.TARGET_ReadVariable(self._m1ctrl.getCtrlHandle(), self._varHandle, ctypes.pointer(value), self._bufferLen)
+        if ret != 0:
+            raise PyComException("pyCom Error: could not read SVI Variable:"+self.name)
         if value.value == None:
             if type(value) == bytes:
                 return valueType(value.decode())
@@ -2074,15 +2074,11 @@ class _SVIVariable:
         """
         if(self.getConnectionState() != ONLINE):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
-        sviBuffer = VARIABLE_BUFFER()
-        sviBuffer.varHandle = self.getVarHandle()
-        sviBuffer.bufferLen = self._m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._varInfo))
+
         value = None
         identifiyer = self._varInfo.format & 0x0f
         if not(self._varInfo.format & SVI_F_IN):
             raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not write able!")
-        #duplicated in read and write to make it easiely thread safe
-        #and avoid corruption through Garbage Collector!
         if(self._varInfo.format & SVI_F_BLK):
             if(identifiyer == SVI_F_CHAR8):
                 if type(data) != str:
@@ -2181,9 +2177,8 @@ class _SVIVariable:
                 value = ctypes.c_float(data)
             else:
                 raise PyComException("pyCom Error: unknown SVI Type!"+str(self._varInfo.format)+" of Variable:"+self.name)
-        sviBuffer.buffer = ctypes.cast(ctypes.byref(value), ctypes.c_char_p)
         
-        if self._m1ctrl._pycom.TARGET_WriteVariables(self._m1ctrl.getCtrlHandle(), ctypes.pointer(sviBuffer), 1) < 0:
+        if self._m1ctrl._pycom.TARGET_WriteVariable(self._m1ctrl.getCtrlHandle(), self._varHandle, ctypes.byref(value), self._bufferLen) != 0:
             raise PyComException("pyCom Error: could not write Svi Variable:" + str(self.name))
         
     def getConnectionState(self):
