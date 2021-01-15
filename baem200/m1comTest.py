@@ -31,6 +31,58 @@ def assertNotBytes(test, methodReturn):
                     assertType = type(getattr(methodReturn, attribute))
                     test.assertNotEqual(assertType, bytes)
 
+def sviAppInstall(mh):
+
+    # Determine current directory
+    curDir = os.path.dirname(os.path.abspath(__file__))
+
+    # Copy test application to bachmann
+    mh.copyToTarget(curDir + '/unittestFiles/sviwrite.m', '/cfc0/app/sviwrite.m')
+
+    # Make a copy of the mconfig.ini
+    mh.copyFromTarget('/cfc0/mconfig.ini', curDir + '/unittestFiles/mconfigBackup.ini')
+    shutil.copyfile(curDir + '/unittestFiles/mconfigBackup.ini', curDir + '/unittestFiles/mconfigSVIWrite.ini')
+
+    # Add application to mconfig.ini
+    f = open(curDir + '/unittestFiles/mconfigSVIWrite.ini', 'a')
+    f.write("[SVIWRITE]\n")
+    f.write("(BaseParms)\n")
+    f.write("  Partition = 2\n")
+    f.write("  DebugMode = 0x0\n")
+    f.write("  Priority = 130\n")
+    f.write("  ModuleIndex = 0\n")
+    f.write("  ModulePath = /cfc0/app/\n")
+    f.write("  ModuleName = sviwrite.m\n")
+    f.write("(ControlTask)\n")
+    f.write("  CycleTime = 1000000\n")
+    f.write("  Priority = 90\n")
+    f.close()
+
+    # Remove old mconfig.ini from target, copy the new mconfig.ini and reboot
+    mh.remove('/cfc0/mconfig.ini')
+    mh.copyToTarget(curDir + '/unittestFiles/mconfigSVIWrite.ini', '/cfc0/mconfig.ini')
+    mh.reboot()
+    mh.disconnect()
+    time.sleep(20)
+
+    # Reconnect to the target
+    mh.connect(timeout=3000)
+
+def sviAppRemove(mh):
+
+    # Determine current directory
+    curDir = os.path.dirname(os.path.abspath(__file__))
+
+    # Remove application and mconfig.ini from target, copy back the original mconfig.ini and reboot
+    mh.remove('/cfc0/app/sviwrite.m')
+    mh.remove('/cfc0/mconfig.ini')
+    mh.copyToTarget(curDir + '/unittestFiles/mconfigBackup.ini', '/cfc0/mconfig.ini')
+    mh.reboot()
+    mh.disconnect()
+    os.remove(curDir + '/unittestFiles/mconfigBackup.ini')
+    os.remove(curDir + '/unittestFiles/mconfigSVIWrite.ini')
+    time.sleep(20)
+
 class Test_PyComException(unittest.TestCase):
     def test_with_traceback(self):
         exception = m1com.PyComException('PyComException Test')
@@ -91,6 +143,18 @@ class Test_PyCom(unittest.TestCase):
         assertNotBytes(self, dllVersion)
 
         testedMethods.append('PyCom.getDllVersion')
+
+    def test_getDllBits(self):
+        dll = m1com.PyCom()
+        dllBits = dll.getDllBits()
+
+        if sys.maxsize > 2**32: # 64bit
+            self.assertEqual(dllBits, '64bit')
+        else:
+            self.assertEqual(dllBits, '32bit')
+        assertNotBytes(self, dllBits)
+
+        testedMethods.append('PyCom.getDllBits')
 
 class Test_M1Controller(unittest.TestCase):
     def test_getCtrlHandle(self):
@@ -323,6 +387,352 @@ class Test_M1Controller(unittest.TestCase):
 
             testedMethods.append('M1Controller.sendCall')
 
+
+class Test_M1SVIObserver(unittest.TestCase):
+    def test_detach(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        self.assertNotEqual(sviObserver._obsHandle, None)
+        self.assertEqual(sviObserver.detach(), None)
+
+        self.assertEqual(sviObserver._obsHandle, None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1SVIObserver.detach')
+
+    def test_getObsHandle(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+
+        self.assertEqual(sviObserver.getObsHandle(), sviObserver._obsHandle)
+        self.assertNotEqual(sviObserver._obsHandle, None)
+        self.assertEqual(sviObserver.detach(), None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1SVIObserver.getObsHandle')
+
+    def test_attach(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        self.assertEqual(sviObserver.getObsHandle(), sviObserver._obsHandle)
+        self.assertNotEqual(sviObserver._obsHandle, None)
+        self.assertEqual(len(sviObserver._sviHandles), 4)
+        for i in range(4):
+            self.assertEqual(type(sviObserver._sviHandles[i]), int)
+        self.assertEqual(len(sviObserver._sviInfos), 4)
+        for i in range(4):
+            self.assertEqual(str(type(sviObserver._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
+        self.assertEqual(len(sviObserver._sviValues), 4)
+        self.assertEqual(str(type(sviObserver._sviValues[0])), "<class 'ctypes.c_ulong'>")
+        self.assertEqual(str(type(sviObserver._sviValues[1])), "<class 'ctypes.c_ulong'>")
+        self.assertEqual(str(type(sviObserver._sviValues[2])), "<class 'ctypes.c_ulong'>")
+        self.assertEqual(str(type(sviObserver._sviValues[3])), "<class 'm1com.c_char_Array_20'>")
+        self.assertNotEqual(sviObserver._indicesChanged, None)
+        self.assertEqual(sviObserver.detach(), None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1SVIObserver.attach')
+
+    def test_update(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        self.assertEqual(sviObserver.update(), 4)
+        time.sleep(1)
+        self.assertEqual(sviObserver.update(), 2)
+        self.assertEqual(sviObserver.detach(), None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1SVIObserver.update')
+
+    def test_getVariables(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        self.assertEqual(len(sviObserver.getVariables(updatedOnly=True)), 4)
+        assertNotBytes(self, sviObserver.getVariables(updatedOnly=True))
+        time.sleep(1)
+        for i in range(5):
+            self.assertEqual(len(sviObserver.getVariables(updatedOnly=True)), 2)
+            assertNotBytes(self, sviObserver.getVariables(updatedOnly=True))
+            time.sleep(1)
+        self.assertEqual(sviObserver.detach(), None)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        self.assertEqual(len(sviObserver.getVariables(updatedOnly=False)), 4)
+        assertNotBytes(self, sviObserver.getVariables(updatedOnly=False))
+        time.sleep(1)
+        for i in range(5):
+            self.assertEqual(len(sviObserver.getVariables(updatedOnly=False)), 4)
+            assertNotBytes(self, sviObserver.getVariables(updatedOnly=False))
+            time.sleep(1)
+        self.assertEqual(sviObserver.detach(), None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+
+            # Connect to the target
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            # Perform the read tests
+            readVariables = { 'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                              'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                              'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                              'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+            # Setup the observer
+            sviObserver = m1com.M1SVIObserver(list(readVariables.keys()), mh)
+            obtainedVariables = sviObserver.getVariables(updatedOnly=False)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                for key in readVariables:
+                    if readVariables[key] == bool:
+                        value = False
+                    elif readVariables[key] == int:
+                        value = 0
+                    elif readVariables[key] == float:
+                        value = 0.0
+                    elif readVariables[key] == str:
+                        value = 'O'
+                    else:
+                        value = None
+                        print('Unsupported type: ' + str(readVariables[key]) + ' for ' + str(key))
+
+                    sviValue = obtainedVariables[key]
+                    self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(value))
+                    if type(sviValue) == float:
+                        self.assertAlmostEqual(sviValue, value, msg='for ' + key + '=' + str(value))
+                    else:
+                        self.assertEqual(sviValue, value, msg='for ' + key + '=' + str(value))
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIObserver.getVariables')
+
+    def test_reset(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        sviObserver = m1com.M1SVIObserver(['RES/TypeVers', 'RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+        for i in range(5):
+            self.assertEqual(len(sviObserver.getVariables(updatedOnly=True)), 4)
+            assertNotBytes(self, sviObserver.getVariables(updatedOnly=True))
+            self.assertEqual(sviObserver.reset(), None)
+            time.sleep(1)
+        self.assertEqual(sviObserver.detach(), None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1SVIObserver.reset')
+
+class Test_M1SVIWriter(unittest.TestCase):
+    def test_detach(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+
+                self.assertNotEqual(sviWriter._sviHandles, None)
+                self.assertEqual(sviWriter.detach(), None)
+
+                self.assertEqual(sviWriter._sviHandles, None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIWriter.detach')
+
+    def test_getSVIHandles(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+
+                self.assertNotEqual(sviWriter.getSVIHandles(), None)
+                self.assertEqual(type(sviWriter.getSVIHandles()), list)
+                self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
+                for sviHandle in sviWriter.getSVIHandles():
+                    self.assertGreater(sviHandle, 0)
+                self.assertEqual(sviWriter.detach(), None)
+                self.assertEqual(sviWriter._sviHandles, None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIWriter.getSVIHandles')
+
+    def test_attach(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+
+                self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
+                self.assertNotEqual(sviWriter.getSVIHandles(), None)
+                self.assertEqual(len(sviWriter._sviHandles), len(list(writeVariables.keys())))
+                for i in range(len(list(writeVariables.keys()))):
+                    self.assertEqual(type(sviWriter._sviHandles[i]), int)
+                self.assertEqual(len(sviWriter._sviInfos), len(list(writeVariables.keys())))
+                for i in range(len(list(writeVariables.keys()))):
+                    self.assertEqual(str(type(sviWriter._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
+                self.assertEqual(len(sviWriter._sviValues), len(list(writeVariables.keys())))
+                self.assertEqual(sviWriter.detach(), None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIWriter.attach')
+
+    def test_setVariables(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            # Connect to the target
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            # Perform the read tests
+            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                                'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 
+                                'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int, 
+                                'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float, 
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+            writeValues = [ [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World"],
+                            [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O"] ]
+
+            # Setup the writer and observer
+            sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+            sviObserver = m1com.M1SVIObserver(list(writeVariables.keys()), mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                for i in range(len(writeValues)):
+
+                    sviWriter.setVariables(writeValues[i])
+                    obtainedVariables = sviObserver.getVariables()
+
+                    j = 0
+                    for key in writeVariables:
+                        sviValue = obtainedVariables[key]
+                        realValue = writeValues[i][j]
+                        self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(realValue))
+                        if type(sviValue) == float:
+                            self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                        else:
+                            self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+
+                        j = j + 1
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIWriter.setVariables')
+
 class Test_M1TargetFinder(unittest.TestCase):
     def test_TargetBroadcastSmiPing(self):
         mt = m1com.M1TargetFinder()
@@ -354,11 +764,10 @@ class Test_M1TargetFinder(unittest.TestCase):
 
 class Test_M1SwModule(unittest.TestCase):
     def test_attach(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
+        swModule = m1com._M1SwModule('RES', mh)
 
         self.assertEqual(swModule.attach(), None)
         self.assertNotEqual(swModule._modHandle, None)
@@ -367,11 +776,10 @@ class Test_M1SwModule(unittest.TestCase):
         testedMethods.append('_M1SwModule.attach')
 
     def test_detach(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
+        swModule = m1com._M1SwModule('RES', mh)
 
         self.assertEqual(swModule.detach(), None)
         self.assertEqual(swModule._modHandle, None)
@@ -380,11 +788,10 @@ class Test_M1SwModule(unittest.TestCase):
         testedMethods.append('_M1SwModule.detach')
 
     def test_getModHandle(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
+        swModule = m1com._M1SwModule('RES', mh)
 
         self.assertEqual(swModule.getModHandle(), swModule._modHandle)
         self.assertNotEqual(swModule._modHandle, None)
@@ -393,11 +800,10 @@ class Test_M1SwModule(unittest.TestCase):
         testedMethods.append('_M1SwModule.getModHandle')
 
     def test_getNumberofSviVariables(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
+        swModule = m1com._M1SwModule('RES', mh)
 
         self.assertGreater(swModule.getNumberofSviVariables(), 200)
         self.assertEqual(type(swModule.getNumberofSviVariables()), int)
@@ -406,11 +812,10 @@ class Test_M1SwModule(unittest.TestCase):
         testedMethods.append('_M1SwModule.getNumberofSviVariables')
 
     def test_getListofSviVariables(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
+        swModule = m1com._M1SwModule('RES', mh)
 
         listOfSviVariables = swModule.getListofSviVariables()
 
@@ -422,12 +827,11 @@ class Test_M1SwModule(unittest.TestCase):
 
 class Test_SVIVariable(unittest.TestCase):
     def test_attach(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
 
         self.assertEqual(sviVariable.attach(), None)
         self.assertNotEqual(sviVariable._varHandle, None)
@@ -436,12 +840,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.attach')
 
     def test_detach(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
 
         self.assertEqual(sviVariable.detach(), None)
         self.assertEqual(sviVariable._varHandle, None)
@@ -450,12 +853,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.detach')
 
     def test_getVarHandle(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
 
         self.assertEqual(sviVariable.getVarHandle(), sviVariable._varHandle)
         self.assertNotEqual(sviVariable._varHandle, None)
@@ -464,12 +866,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.getVarHandle')
 
     def test_getVarInfo(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         sviInfo = sviVariable.getVarInfo()
 
         self.assertEqual(sviInfo, sviVariable._varInfo)
@@ -479,12 +880,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.getVarInfo')
 
     def test_updateVarInfo(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         updateSviInfo = sviVariable.updateVarInfo()
 
         self.assertEqual(updateSviInfo, None)
@@ -493,12 +893,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.updateVarInfo')
 
     def test_read(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         sviValue = sviVariable.read()
 
         self.assertEqual(type(sviValue), int)
@@ -509,12 +908,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.read')
 
     def test_write(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
 
         try:
             sviVariable.write(60)
@@ -522,73 +920,68 @@ class Test_SVIVariable(unittest.TestCase):
             error = str(error.value)
             self.assertEqual(error, 'pyCom Error: Svi Variable[RES/CPU/TempCelsius] is not write able!')
 
-        # Determine current directory
-        curDir = os.path.dirname(os.path.abspath(__file__))
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
 
-        # Copy test application to bachmann
-        mh.copyToTarget(curDir + '/unittestFiles/sviwrite.m', '/cfc0/app/sviwrite.m')
+            # Install the svi test application
+            sviAppInstall(mh)
 
-        # Make a copy of the mconfig.ini
-        mh.copyFromTarget('/cfc0/mconfig.ini', curDir + '/unittestFiles/mconfigBackup.ini')
-        shutil.copyfile(curDir + '/unittestFiles/mconfigBackup.ini', curDir + '/unittestFiles/mconfigSVIWrite.ini')
+            # Perform the write tests
+            swModule = m1com._M1SwModule('SVIWRITE', mh)
+            writeVariables = { 'boolVar': bool, 'bool8Var': bool, 'uInt8Var': int, 'sInt8Var': int,
+                               'uInt16Var': int, 'sInt16Var': int, 'uInt32Var': int, 'sInt32Var': int, 
+                               'uInt64Var': int, 'sInt64Var': int, 'real32Var': float, 'real64Var': float,
+                               'char8Var': str, 'char16Var': str, 'stringVar': str}
 
-        # Add application to mconfig.ini
-        f = open(curDir + '/unittestFiles/mconfigSVIWrite.ini', 'a')
-        f.write("[SVIWRITE]\n")
-        f.write("(BaseParms)\n")
-        f.write("  Partition = 2\n")
-        f.write("  DebugMode = 0x0\n")
-        f.write("  Priority = 130\n")
-        f.write("  ModuleIndex = 0\n")
-        f.write("  ModulePath = /cfc0/app/\n")
-        f.write("  ModuleName = sviwrite.m\n")
-        f.write("(ControlTask)\n")
-        f.write("  CycleTime = 1000000\n")
-        f.write("  Priority = 90\n")
-        f.close()
+            Error = False
+            ErrorMsg = ''
+            try:
+                for key in writeVariables:
+                    sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+                    if writeVariables[key] == bool:
+                        value = [True, False]
+                    elif writeVariables[key] == int:
+                        value = [1, 0]
+                    elif writeVariables[key] == float:
+                        value = [1.1, 0.0]
+                    elif writeVariables[key] == str:
+                        value = ['L', 'O']
+                    else:
+                        value = None
+                        print('Unsupported type: ' + str(writeVariables[key]) + ' for ' + str(key))
+                    sviVariable.write(value[0])
+                    sviValue = sviVariable.read()
+                    self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
+                    if type(sviValue) == float:
+                        self.assertAlmostEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
+                    else:
+                        self.assertEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
 
-        # Remove old mconfig.ini from target, copy the new mconfig.ini and reboot
-        mh.remove('/cfc0/mconfig.ini')
-        mh.copyToTarget(curDir + '/unittestFiles/mconfigSVIWrite.ini', '/cfc0/mconfig.ini')
-        mh.reboot()
-        mh.disconnect()
-        time.sleep(20)
+                    sviVariable.write(value[1])
+                    sviValue = sviVariable.read()
+                    self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(sviValue, value[1], msg='for ' + key + '=' + str(value[1]))
 
-        # Reconnect to the rebooted target and write svi variable
-        mh.connect(timeout=3000)
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
 
-        # Perform the write tests
-        swModule = m1com._M1SwModule(dll, 'SVIWRITE', mh)
-        sviVariable = m1com._SVIVariable(dll, 'SVIWRITE/writeTestVariable', swModule)
-        sviVariable.write(1)
-        sviValue = sviVariable.read()
-        self.assertEqual(type(sviValue), int)
-        self.assertEqual(sviValue, 1)
+            # Remove the svi test application
+            sviAppRemove(mh)
 
-        sviVariable.write(0)
-        sviValue = sviVariable.read()
-        self.assertEqual(type(sviValue), int)
-        self.assertEqual(sviValue, 0)
-
-        # Remove application and mconfig.ini from target, copy back the original mconfig.ini and reboot
-        mh.remove('/cfc0/app/sviwrite.m')
-        mh.remove('/cfc0/mconfig.ini')
-        mh.copyToTarget(curDir + '/unittestFiles/mconfigBackup.ini', '/cfc0/mconfig.ini')
-        mh.reboot()
-        self.assertEqual(mh.disconnect(), 0)
-        os.remove(curDir + '/unittestFiles/mconfigBackup.ini')
-        os.remove(curDir + '/unittestFiles/mconfigSVIWrite.ini')
-        time.sleep(20)
-
-        testedMethods.append('_SVIVariable.write')
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('_SVIVariable.write')
 
     def test_getConnectionState(self):
-        dll = m1com.PyCom()
-        mh = m1com.M1Controller(pycom=dll, ip=ipAddress)
+        mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        swModule = m1com._M1SwModule(dll, 'RES', mh)
-        sviVariable = m1com._SVIVariable(dll, 'RES/CPU/TempCelsius', swModule)
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         connectionState = sviVariable.getConnectionState()
 
         self.assertEqual(connectionState, 0)
@@ -628,10 +1021,12 @@ if __name__ == "__main__":
     for Class in M1comClasses:
         for Method in M1comClasses[Class]:
             if (Class + '.' + Method) not in testedMethods:
-                print('\nMethod ' + Class + '.' + Method + '() not tested!')
+                if count == 0:
+                    print('\nThe following methods were not tested or failed the unittest:')
+                print(Class + '.' + Method + '()')
                 count = count + 1
 
     # Print number of not tested methods
     if count > 0:
-        print('\n' + str(count) + ' methods are not tested!')
+        print('\n' + str(count) + ' methods were not tested or failed the unittest!')
 
