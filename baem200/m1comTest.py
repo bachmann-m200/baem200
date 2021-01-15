@@ -548,6 +548,191 @@ class Test_M1SVIObserver(unittest.TestCase):
 
         testedMethods.append('M1SVIObserver.reset')
 
+class Test_M1SVIReader(unittest.TestCase):
+    def test_detach(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+                self.assertNotEqual(sviReader._sviHandles, None)
+                self.assertEqual(sviReader.detach(), None)
+
+                self.assertEqual(sviReader._sviHandles, None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIReader.detach')
+
+    def test_getSVIHandles(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+                self.assertNotEqual(sviReader.getSVIHandles(), None)
+                self.assertEqual(type(sviReader.getSVIHandles()), list)
+                self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
+                for sviHandle in sviReader.getSVIHandles():
+                    self.assertGreater(sviHandle, 0)
+                self.assertEqual(sviReader.detach(), None)
+                self.assertEqual(sviReader._sviHandles, None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIReader.getSVIHandles')
+
+    def test_attach(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 
+                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+                # Setup the observer
+                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+                self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
+                self.assertNotEqual(sviReader.getSVIHandles(), None)
+                self.assertEqual(len(sviReader._sviHandles), len(list(readVariables.keys())))
+                for i in range(len(list(readVariables.keys()))):
+                    self.assertEqual(type(sviReader._sviHandles[i]), int)
+                self.assertEqual(len(sviReader._sviInfos), len(list(readVariables.keys())))
+                for i in range(len(list(readVariables.keys()))):
+                    self.assertEqual(str(type(sviReader._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
+                self.assertEqual(len(sviReader._sviValues), len(list(readVariables.keys())))
+                self.assertEqual(sviReader.detach(), None)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIReader.attach')
+
+    def test_getVariables(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            # Connect to the target
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            # Perform the read tests
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                                'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 
+                                'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int, 
+                                'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float, 
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str}
+
+            readValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World"],
+                            [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O"] ]
+
+            # Setup the SVI writer and reader
+            sviWriter = m1com.M1SVIWriter(list(readVariables.keys()), mh)
+            sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                for i in range(len(readValues)):
+
+                    sviWriter.setVariables(readValues[i])
+                    obtainedVariables = sviReader.getVariables()
+
+                    j = 0
+                    for key in readVariables:
+                        sviValue = obtainedVariables[j]
+                        realValue = readValues[i][j]
+                        self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(realValue))
+                        if type(sviValue) == float:
+                            self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                        else:
+                            self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+
+                        j = j + 1
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('M1SVIReader.getVariables')
+
 class Test_M1SVIWriter(unittest.TestCase):
     def test_detach(self):
         if fastTest:
