@@ -1203,6 +1203,20 @@ class Test_SVIVariable(unittest.TestCase):
 
         testedMethods.append('_SVIVariable.getConnectionState')
 
+    def test_getFullName(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
+        name = sviVariable.getFullName()
+
+        self.assertEqual(type(name), str)
+        self.assertEqual(name, 'RES/CPU/TempCelsius')
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('_SVIVariable.getFullName')
+
 if __name__ == "__main__":
     
     # Settings

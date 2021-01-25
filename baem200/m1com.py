@@ -2238,7 +2238,7 @@ class _SVIVariable:
                 raise PyComException("pyCom Error: unknown SVI Type!"+str(self._varInfo.format)+" of Variable:"+self.name)
         
         if self._m1ctrl._pycom.TARGET_WriteVariable(self._m1ctrl.getCtrlHandle(), self._varHandle, ctypes.byref(value), self._bufferLen) != 0:
-            raise PyComException("pyCom Error: could not write Svi Variable:" + str(self.name))
+            raise PyComException("pyCom Error: Could not write SVI Variable:" + str(self.name))
         
     def getConnectionState(self):
         """
@@ -2247,6 +2247,16 @@ class _SVIVariable:
         state = ctypes.c_uint(0)
         self._m1ctrl._pycom.VARIABLE_GetState(self._varHandle, ctypes.pointer(state))
         return state.value
+
+    def getFullName(self):
+        """
+        Get the full name of the variable.
+        """
+        fullName = self._m1ctrl._pycom.VARIABLE_GetFullName(self._varHandle).decode()
+        if fullName == "":
+            raise PyComException("pyCom Error: Could not get full SVI Variable name of " + str(self.name))
+
+        return fullName
     
 if __name__ == "__main__":
 
