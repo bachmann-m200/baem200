@@ -169,9 +169,30 @@ class Test_M1Controller(unittest.TestCase):
 
     def test_connect(self):
         mh = m1com.M1Controller(ip=ipAddress)
-        mh.connect(timeout=3000)
 
+        mh.connect(timeout=3000)
         self.assertNotEqual(mh._ctrlHandle, None)
+        self.assertEqual(mh.disconnect(), 0)
+
+        mh.connect(protocol='TCP', timeout=3000)
+        self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol TCP failed!")
+        self.assertEqual(mh.disconnect(), 0)
+
+        mh.connect(protocol='QSOAP', timeout=3000)
+        self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol QSOAP failed!")
+        self.assertEqual(mh.disconnect(), 0)
+
+        mh.connect(protocol='UDP', timeout=3000)
+        self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol UDP failed!")
+        self.assertEqual(mh.disconnect(), 0)
+
+        #mh.connect(protocol='SSL', timeout=3000)
+        #self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL failed!")
+        #self.assertEqual(mh.disconnect(), 0)
+
+        crtFile = 'C:/Users/COEK/Documents/XCA Database/coek.p12'
+        mh.connect(protocol='SSL', clientCert=crtFile, clientCertPassword='bachmann', timeout=3000)
+        self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL and client certificate failed!")
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.connect')
@@ -191,13 +212,12 @@ class Test_M1Controller(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        self.assertEqual(str(type(mh.getLoginInfo())), "<class 'm1com.RES_LOGIN2_R'>")
+        loginInfo = mh.getLoginInfo()
 
-        assertNotBytes(self, mh.getLoginInfo())
-
-        securityLevel = mh.getLoginInfo().SecurityLevel
-        self.assertGreaterEqual(securityLevel, 0)
-        self.assertLessEqual(securityLevel, 4)
+        self.assertEqual(str(type(loginInfo)), "<class 'm1com.RES_LOGIN2_R'>")
+        assertNotBytes(self, loginInfo)
+        self.assertGreaterEqual(loginInfo.SecurityLevel, 0)
+        self.assertLessEqual(loginInfo.SecurityLevel, 4)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getLoginInfo')

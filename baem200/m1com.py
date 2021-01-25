@@ -7,7 +7,6 @@ import ctypes, os.path, shutil, sys
 from ctypes.test import ctypes
 from ctypes.test.test_pointers import ctype_types
 
-
 #Const:
 MIO_INFOLEN_A        = 200
 MIO_CNAMELEN_A       = 24
@@ -31,6 +30,11 @@ PROTOCOL_SSL         = 2
 PROTOCOL_UDP         = 4
 
 SMI_PERM_REBOOT      = 0x80000 
+M1C_IGNORE_SERVER_CERT = 0x3
+
+CERT_CLOSE_STORE_FORCE_FLAG = 1
+PKCS12_ALLOW_OVERWRITE_KEY = 0x00004000
+PKCS12_NO_PERSIST_KEY = 0x00008000
 
 #SVI FORMAT:
 SVI_F_IN             = 0x80     #Type is input (server view) */
@@ -57,7 +61,26 @@ SVI_F_CHAR16         = 0x0f     #16-bit character (Unicode) */
 SVI_F_STRINGLSTBASE  = 0x10     #base of String list type */
 SVI_F_USTRINGLSTBASE = 0x11     #base of Unicode String list type */
 
-#Structures:
+class CERT_CONTEXT(ctypes.Structure):
+    _fields_ = [("dwCertEncodingType", ctypes.wintypes.DWORD),
+                ("pbCertEncoded", ctypes.POINTER(ctypes.wintypes.BYTE)),
+                ("cbCertEncoded", ctypes.wintypes.DWORD),
+                ("pCertInfo", ctypes.c_void_p),
+                ("hCertStore", ctypes.c_void_p)]
+
+class CRYPT_DATA_BLOB(ctypes.Structure):
+    _fields_ = [("cbData", ctypes.wintypes.DWORD),
+                ("pbData", ctypes.POINTER(ctypes.wintypes.BYTE))]
+
+class BYTE_ARRAY(ctypes.Structure):
+    _fields_ = [('array_size', ctypes.c_short),
+                ('ARRAY', ctypes.POINTER(ctypes.wintypes.BYTE))]
+
+    def __init__(self,num_of_structs):
+        elems = (ctypes.wintypes.BYTE * num_of_structs)()
+        self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.wintypes.BYTE))
+        self.array_size = num_of_structs
+
 class MODULE_NAME(ctypes.Structure):
     _fields_ = [("name", (ctypes.c_char * M_MODNAMELEN_A))]
 
@@ -138,20 +161,6 @@ class RES_USER_ACCESS(ctypes.Structure):
                 ("AppPerm",     _AppPerm),
                 ("AppData",     ctypes.c_int32),
                 ("Spare1",      (ctypes.c_uint32 * 3))]
-
-class RES_LOGIN2_C(ctypes.Structure):
-    _fields_ = [("UserParm",    ctypes.c_uint32),
-                ("MainVers",    ctypes.c_uint32),
-                ("SubVers",     ctypes.c_uint32),
-                ("ToolName",    (ctypes.c_char * M_MODNAMELEN_A)),
-                ("UserName",    (ctypes.c_char * M_UNAMELEN2_A)),
-                ("Password",    (ctypes.c_char * M_PWORDLEN2)),
-                ("Local",       ctypes.c_bool),
-                ("Spare1",      (ctypes.c_bool * 3)),
-                ("Spare2",      ctypes.c_uint32),
-                ("Spare3",      ctypes.c_uint32),
-                ("Spare4",      ctypes.c_uint32),
-                ("Spare5",      ctypes.c_uint32)]
 
 class RES_LOGIN2_R(ctypes.Structure):
     _fields_ = [("RetCode",         ctypes.c_int32),
@@ -670,6 +679,13 @@ class PyCom:
         self.TARGET_GetMaxCallSize = m1Dll.TARGET_GetMaxCallSize
         self.TARGET_GetMaxCallSize.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetMaxCallSize.restype  = ctypes.c_long
+
+        #UnitTested: no
+        #TODO:
+        #M1COM SINT32 TARGET_SetSSLClientCertificateContext(M1C_H_TARGET targetHandle, PCERT_CONTEXT clientCertContext);
+        self.TARGET_SetSSLClientCertificateContext = m1Dll.TARGET_SetSSLClientCertificateContext
+        self.TARGET_SetSSLClientCertificateContext.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        self.TARGET_SetSSLClientCertificateContext.restype  = ctypes.c_long
         
         #UnitTested: no
         #TODO:
@@ -726,7 +742,22 @@ class PyCom:
         self.RFS_Remove = m1Dll.RFS_Remove
         self.RFS_Remove.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self.RFS_Remove.restype  = ctypes.c_long
-        
+
+        # SSL certificate import functions
+        crypt32 = ctypes.WinDLL("crypt32.dll", use_last_error=True)
+
+        self.PFXImportCertStore = crypt32.PFXImportCertStore
+        self.PFXImportCertStore.argtypes = [ctypes.POINTER(CRYPT_DATA_BLOB), ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
+        self.PFXImportCertStore.restype = ctypes.c_void_p
+
+        self.CertEnumCertificatesInStore = crypt32.CertEnumCertificatesInStore
+        self.CertEnumCertificatesInStore.argtypes = [ctypes.c_void_p, ctypes.POINTER(CERT_CONTEXT)]
+        self.CertEnumCertificatesInStore.restype = ctypes.POINTER(CERT_CONTEXT)
+
+        self.CertCloseStore = crypt32.CertCloseStore
+        self.CertCloseStore.argtypes = [ctypes.c_void_p, ctypes.wintypes.DWORD]
+        self.CertCloseStore.restype = ctypes.wintypes.BOOL
+
     def getDllVersion(self):
         """Return the DLL version of the m1com.dll.
 
@@ -795,18 +826,68 @@ class M1Controller:
             raise PyComException(("pyCom Error: Can't access Controller["+self._ip+"] when not connected!"))
         return self._ctrlHandle
     
-    def connect(self, protocol=PROTOCOL_TCP, timeout=1000):
+    def connect(self, protocol='TCP', clientCert=None, clientCertPassword=None, timeout=1000):
         """
-        Make a connection with the target using the following protocols:
-        TCP:    PROTOCOL_TCP
-        QSOAP:  PROTOCOL_QSOAP
-        SSL:    PROTOCOL_SSL
-        UDP:    PROTOCOL_UDP
+        Make a connection with the target using the protocols: 'TCP', 'QSOAP', 'SSL' or 'UDP'. When using SSL with client certificate, the path of the client certificate (*.p12 file)
+        and its password should be specified using the clientCert and clientCertPassword arguments respectively.
         """
+        if protocol == 'TCP':
+            protocol = PROTOCOL_TCP
+        elif protocol == 'QSOAP':
+            protocol = PROTOCOL_QSOAP
+        elif protocol == 'SSL':
+            protocol = PROTOCOL_SSL
+            if clientCert == None and clientCertPassword != None:
+                raise PyComException(("pyCom Error: Also provide the client certificate when providing a client certificate password!"))
+            if clientCert != None and not os.path.isfile(clientCert):
+                raise PyComException(("pyCom Error: Provided path to the client certificate cannot be found!"))
+            if clientCert != None and clientCertPassword == None:
+                raise PyComException(("pyCom Error: Provide a password for the client certificate!"))
+        elif protocol == 'UDP':
+            protocol = PROTOCOL_UDP
+        else:
+            raise PyComException(("pyCom Error: Unknown protocol '"+str(protocol)+"' given as argument. Use 'TCP', 'QSOAP', 'SLL' or 'UDP'!"))
+
         if(self._ctrlHandle == None):
             self._ctrlHandle = self._pycom.TARGET_Create(self._ip.encode('utf-8'), protocol, timeout)
+            if(self._ctrlHandle == None):
+                raise PyComException(("pyCom Error: Can't create handle to "+self._ip+" through '"+repr(protocol)+"' with username:"+self._username))
+
+            if protocol == PROTOCOL_SSL:
+                if(self._pycom.TARGET_SetUintParam(self._ctrlHandle, M1C_IGNORE_SERVER_CERT, True) != OK):
+                    raise PyComException(("pyCom Error: Can't set uint parameter M1C_IGNORE_SERVER_CERT to True for "+self._ip))
+
+            if protocol == PROTOCOL_SSL and clientCert != None and clientCertPassword != None:
+
+                PFX = CRYPT_DATA_BLOB()
+                fp = open(clientCert, 'rb')
+                buffer = fp.read()
+                fp.close()
+                byteArray = BYTE_ARRAY(len(buffer))
+                for i in range(len(buffer)):
+                    byteArray.ARRAY[i] = buffer[i]
+                PFX.pbData = byteArray.ARRAY
+                PFX.cbData = len(buffer)
+                storeHandle = self._pycom.PFXImportCertStore(ctypes.pointer(PFX), clientCertPassword, PKCS12_ALLOW_OVERWRITE_KEY | PKCS12_NO_PERSIST_KEY)
+                if storeHandle == None:
+                    raise PyComException(("pyCom Error: Could not import client certificate in store, incorrect password?"))
+
+                pCertCtx = self._pycom.CertEnumCertificatesInStore(storeHandle, None)
+                if pCertCtx:
+                    CERT_CONTEXT = pCertCtx[0]
+                else:
+                    raise PyComException(("pyCom Error: Could not get context of certificate"))
+
+                if(self._pycom.TARGET_SetSSLClientCertificateContext(self._ctrlHandle, ctypes.pointer(CERT_CONTEXT)) != OK):
+                    raise PyComException(("pyCom Error: Can't set SSL client certificate context to "+self._ip))
+
             if(self._pycom.TARGET_Connect(self._ctrlHandle, self._username.encode('utf-8'), self._password.encode('utf-8'), self._pycom.servicename.encode('utf-8')) != OK):
                 raise PyComException(("pyCom Error: Can't connect to "+self._ip+" through '"+repr(protocol)+"' with username:"+self._username))
+
+            if protocol == PROTOCOL_SSL and clientCert != None and clientCertPassword != None:
+                if(self._pycom.CertCloseStore(storeHandle, CERT_CLOSE_STORE_FORCE_FLAG) == False):
+                    raise PyComException(("pyCom Error: Can't close certificate store to "+self._ip))
+
         else:
             raise PyComException(("pyCom Error: Should not connect to a already connected Target! (call disconnect first!)"))
     
@@ -831,31 +912,9 @@ class M1Controller:
         if(self._ctrlHandle == None):
             raise PyComException(("pyCom Error: Make sure you are connected to the Target first! (call connect first!)"))
         else:
-            mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"RES")        
-            self._pycom.MODULE_Connect(mod)
-
-            send = RES_LOGIN2_C()
-            send.MainVers = 0
-            send.SubVers = 0
-            send.ToolName = self._pycom.servicename.encode()
-            send.UserName = self._username.encode()
-            send.Password = self._password.encode()
             recv = RES_LOGIN2_R() 
-
-            returnSendCall = self._pycom.MODULE_SendCall(
-                mod, 
-                ctypes.c_uint(304), 
-                ctypes.c_uint(2), 
-                ctypes.pointer(send), 
-                ctypes.sizeof(send), 
-                ctypes.pointer(recv), 
-                ctypes.sizeof(recv), 
-                3000)
-            if returnSendCall != OK:
-                raise PyComException(("m1com Error: Can't send procedure RES_PROC_LOGIN2 to Controller['"+self._ip+"']"))
-            else:
-                if(self._pycom.TARGET_GetLoginInfo(self._ctrlHandle, ctypes.pointer(recv)) != OK):
-                    raise PyComException(("pyCom Error: Cannot get login info of Controller["+self._ip+"]"))
+            if(self._pycom.TARGET_GetLoginInfo(self._ctrlHandle, ctypes.pointer(recv)) != OK):
+                raise PyComException(("pyCom Error: Cannot get login info of Controller["+self._ip+"]"))
         return recv
     
     def renewConnection(self):
