@@ -7,7 +7,7 @@ import ctypes, os.path, shutil, sys
 from ctypes.test import ctypes
 from ctypes.test.test_pointers import ctype_types
 
-#Const:
+# Const:
 MIO_INFOLEN_A        = 200
 MIO_CNAMELEN_A       = 24
 MIO_PRODNBLEN_A      = 12
@@ -23,18 +23,44 @@ ONLINE               = 0
 OFFLINE              = 1
 ERROR                = 2
 OK                   = 0
-#Protocol types:
+
+# Possible appstates for TARGET_GetTargetState:
+RES_S_RUN            = 1
+RES_S_ERROR          = 2
+RES_S_STOP           = 3
+RES_S_INIT           = 4
+RES_S_DEINIT         = 5
+RES_S_EOI            = 6
+RES_S_RESET          = 7
+RES_S_WARNING        = 8
+RES_S_ERROR_SMART    = 9
+
+# Protocol types:
 PROTOCOL_TCP         = 0
 PROTOCOL_QSOAP       = 1
 PROTOCOL_SSL         = 2
 PROTOCOL_UDP         = 4
 
-SMI_PERM_REBOOT      = 0x80000 
-M1C_IGNORE_SERVER_CERT = 0x3
+# Possible keys for TARGET_Set/GetUintParam()
+M1C_PROXY_USED              = 0x0
+M1C_PROXY_PORT              = 0x1
+M1C_QSOAP_PORT              = 0x2
+M1C_IGNORE_SERVER_CERT      = 0x3
+M1C_COUNT_SOCKETS           = 0x4
+M1C_IGNORE_SERVER_CERT_CN   = 0x5
+M1C_LOGIN2_USER_PARAM       = 0x6
 
+# Possible keys for TARGET_Set/GetStringParam()
+M1C_PROXY_HOST              = 0x00010000
+M1C_PROXY_USERNAME          = 0x00010001
+M1C_PROXY_PASSWD            = 0x00010002
+M1C_QSOAP_PATH              = 0x00010003
+M1C_VHD_SESSIONNAME         = 0x00010004
+
+# SSL/Windows store specific defines
 CERT_CLOSE_STORE_FORCE_FLAG = 1
-PKCS12_ALLOW_OVERWRITE_KEY = 0x00004000
-PKCS12_NO_PERSIST_KEY = 0x00008000
+PKCS12_ALLOW_OVERWRITE_KEY  = 0x00004000
+PKCS12_NO_PERSIST_KEY       = 0x00008000
 
 #SVI FORMAT:
 SVI_F_IN             = 0x80     #Type is input (server view) */
@@ -858,7 +884,7 @@ class PyCom:
 
         version = ctypes.c_char_p(40*"".encode('utf-8'))    #40byte buffer
         self.M1C_GetVersion(version, 40)
-        return version.value.decode("utf-8")
+        return version.value.decode('utf-8')
 
     def getDllBits(self):
         """Return whether the m1com.dll is 32bit or 64bit.
@@ -1028,6 +1054,62 @@ class M1Controller:
         self._ctrlHandle = None
         return ret
 
+    def getConnectionState(self):
+        """
+        Get the state of the communication. Returns 'ONLINE', 'OFFLINE' or 'ERROR'.
+        """
+        state = ctypes.c_uint()
+        if(self._pycom.TARGET_GetConnectionState(self.getCtrlHandle(), ctypes.pointer(state)) != OK):
+            raise PyComException(("pyCom Error: Can't get connection state of Controller["+self._ip+"]"))
+
+        if state.value == ONLINE:
+            return 'ONLINE'
+        elif state.value == OFFLINE:
+            return 'OFFLINE'
+        elif state.value == ERROR:
+            return 'ERROR'
+        else:
+            raise PyComException(("pyCom Error: Get connection state returned unknown value "+str(state.value)+" for Controller["+self._ip+"]"))
+
+    def getTargetState(self):
+        """
+        Get the state of the target. Returns the appstate and the reboot count. Appstate can have the following returns:
+        'RES_S_RUN'         --> Resource is OK and runs
+        'RES_S_ERROR'       --> Resource is in error
+        'RES_S_STOP'        --> Resource has been stopped
+        'RES_S_INIT'        --> Resource is being initialized
+        'RES_S_DEINIT'      --> Resource has been un-installed
+        'RES_S_EOI'         --> Resource waits for #SMI_PROC_ENDOFINIT
+        'RES_S_RESET'       --> Resource is in reset state
+        'RES_S_WARNING'     --> Resource is in warning state
+        'RES_S_ERROR_SMART' --> Resource is in S.M.A.R.T. error state
+        """
+        appState = ctypes.c_uint16()
+        rebootCount = ctypes.c_uint16()
+        if(self._pycom.TARGET_GetTargetState(self.getCtrlHandle(), ctypes.pointer(appState), ctypes.pointer(rebootCount)) != OK):
+            raise PyComException(("pyCom Error: Can't get target state of Controller["+self._ip+"]"))
+
+        if appState.value == RES_S_RUN:
+            appState = 'RES_S_RUN'
+        elif appState.value == RES_S_ERROR:
+            appState = 'RES_S_ERROR'
+        elif appState.value == RES_S_STOP:
+            appState = 'RES_S_STOP'
+        elif appState.value == RES_S_INIT:
+            appState = 'RES_S_INIT'
+        elif appState.value == RES_S_DEINIT:
+            appState = 'RES_S_DEINIT'
+        elif appState.value == RES_S_EOI:
+            appState = 'RES_S_EOI'
+        elif appState.value == RES_S_RESET:
+            appState = 'RES_S_RESET'
+        elif appState.value == RES_S_WARNING:
+            appState = 'RES_S_WARNING'
+        else:
+            raise PyComException(("pyCom Error: Get target state returned unknown value for appState["+str(appState.value)+"] for Controller["+self._ip+"]"))
+
+        return {'appState': appState, 'rebootCount': rebootCount.value}
+
     def getNumberofSwModules(self):
         """
         Get the count of all modules on the target.
@@ -1059,7 +1141,7 @@ class M1Controller:
         if (self._pycom.TARGET_GetModules(self.getCtrlHandle(), countSwModules, myModuleList) != OK):
             raise PyComException(("pyCom Error: Can't get Software ModuleList from Controller["+self._ip+"]"))
         for num in range(0, countSwModules):
-            py_modulelist[myModuleNames.ARRAY[num].name.decode()] = _M1SwModule(myModuleNames.ARRAY[num].name.decode(), self)
+            py_modulelist[myModuleNames.ARRAY[num].name.decode('utf-8')] = _M1SwModule(myModuleNames.ARRAY[num].name.decode('utf-8'), self)
         return py_modulelist
 
     def getDrvId(self, CardNb):
@@ -1119,7 +1201,7 @@ class M1Controller:
         cardInfoExt = {}
         for name in recv.Inf._fields_:
             if type(getattr(recv.Inf, name[0])) == bytes:
-                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0]).decode()})
+                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0]).decode('utf-8')})
             else:
                 cardInfoExt.update({name[0]:getattr(recv.Inf, name[0])})
 
@@ -1153,28 +1235,28 @@ class M1Controller:
         """
         Copy a file from the target.
         """
-        if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), localFileName.encode(), remoteFileName.encode()) != OK):
+        if(self._pycom.RFS_CopyFromTarget(self.getCtrlHandle(), localFileName.encode('utf-8'), remoteFileName.encode('utf-8')) != OK):
             raise PyComException(("pyCom Error: Can't get copy " + remoteFileName + " from Controller['"+self._ip+"']"))
 
     def copyToTarget(self, localFileName, remoteFileName):
         """
         Copy a local file to the target.
         """
-        if(self._pycom.RFS_CopyToTarget(self.getCtrlHandle(), remoteFileName.encode(), localFileName.encode()) != OK):
+        if(self._pycom.RFS_CopyToTarget(self.getCtrlHandle(), remoteFileName.encode('utf-8'), localFileName.encode('utf-8')) != OK):
             raise PyComException(("pyCom Error: Can't copy " + localFileName + " to Controller['"+self._ip+"']"))
 
     def copyRemote(self, srcFile, destFile):
         """
         Copy a file on the target and save it somewhere else on the target.
         """
-        if(self._pycom.RFS_CopyRemote(self.getCtrlHandle(), destFile.encode(), srcFile.encode()) != OK):
+        if(self._pycom.RFS_CopyRemote(self.getCtrlHandle(), destFile.encode('utf-8'), srcFile.encode('utf-8')) != OK):
             raise PyComException(("pyCom Error: Can't copy " + destFile + " to " + srcFile + " on Controller['"+self._ip+"']"))
 
     def remove(self, remoteFileName):
         """
         Remove a file on the target.
         """
-        if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode()) != OK):
+        if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode('utf-8')) != OK):
             raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " on Controller['"+self._ip+"']"))
     
     def reboot(self):
@@ -1203,7 +1285,7 @@ class M1Controller:
         """
         Send a custom SMI call to the target.
         """
-        mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode())        
+        mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode('utf-8'))
         self._pycom.MODULE_Connect(mod)
         sendSize = ctypes.c_ushort(ctypes.sizeof(send))
         recvSize = ctypes.c_ushort(ctypes.sizeof(recv))
@@ -1219,6 +1301,109 @@ class M1Controller:
         if(returnSendCall != OK):
             raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']"))
         return recv
+
+    def setUintParam(self, key, value):
+        """
+        Sets a special parameter for the target. Possible keys are: 'M1C_PROXY_USED', 'M1C_PROXY_PORT', 'M1C_QSOAP_PORT',
+        'M1C_IGNORE_SERVER_CERT', 'M1C_COUNT_SOCKETS', 'M1C_IGNORE_SERVER_CERT_CN' and 'M1C_LOGIN2_USER_PARAM'.
+        """
+        if key == 'M1C_PROXY_USED':
+            key = M1C_PROXY_USED
+        elif key == 'M1C_PROXY_PORT':
+            key = M1C_PROXY_PORT
+        elif key == 'M1C_QSOAP_PORT':
+            key = M1C_QSOAP_PORT
+        elif key == 'M1C_IGNORE_SERVER_CERT':
+            key = M1C_IGNORE_SERVER_CERT
+        elif key == 'M1C_COUNT_SOCKETS':
+            key = M1C_COUNT_SOCKETS
+        elif key == 'M1C_IGNORE_SERVER_CERT_CN':
+            key = M1C_IGNORE_SERVER_CERT_CN
+        elif key == 'M1C_LOGIN2_USER_PARAM':
+            key = M1C_LOGIN2_USER_PARAM
+        else:
+            raise PyComException(("pyCom Error: Unknown uint parameter "+str(key)+" for "+self._ip))
+
+        if type(value) != int and type(value) != bool:
+            raise PyComException(("pyCom Error: Argument 'value' should be of type 'int' or 'bool' and not type "+str(type(value))))
+        if type(value) == bool:
+            value = int(value)
+
+        if(self._pycom.TARGET_SetUintParam(self._ctrlHandle, key, value) != OK):
+            raise PyComException(("pyCom Error: Can't set uint parameter "+str(key)+" to "+str(value)+" for "+self._ip))
+
+    def setStringParam(self, key, value):
+        """
+        Sets a special parameter for the target. Possible keys are: 'M1C_PROXY_HOST', 'M1C_PROXY_USERNAME', 'M1C_PROXY_PASSWD',
+        'M1C_QSOAP_PATH' and 'M1C_VHD_SESSIONNAME'.
+        """
+        if key == 'M1C_PROXY_HOST':
+            key = M1C_PROXY_HOST
+        elif key == 'M1C_PROXY_USERNAME':
+            key = M1C_PROXY_USERNAME
+        elif key == 'M1C_PROXY_PASSWD':
+            key = M1C_PROXY_PASSWD
+        elif key == 'M1C_QSOAP_PATH':
+            key = M1C_QSOAP_PATH
+        elif key == 'M1C_VHD_SESSIONNAME':
+            key = M1C_VHD_SESSIONNAME
+        else:
+            raise PyComException(("pyCom Error: Unknown string parameter "+str(key)))
+
+        if type(value) != str:
+            raise PyComException(("pyCom Error: Argument 'value' should be of type 'str'"))
+
+        if(self._pycom.TARGET_SetStringParam(self._ctrlHandle, key, value.encode('utf-8'), len(value)) != OK):
+            raise PyComException(("pyCom Error: Can't set string parameter "+str(key)+" to "+str(value)+" for "+self._ip))
+
+    def getUintParam(self, key):
+        """
+        Gets the value of a special parameter for the target. Possible keys are: 'M1C_PROXY_USED', 'M1C_PROXY_PORT', 'M1C_QSOAP_PORT',
+        'M1C_IGNORE_SERVER_CERT', 'M1C_COUNT_SOCKETS', 'M1C_IGNORE_SERVER_CERT_CN' and 'M1C_LOGIN2_USER_PARAM'.
+        """
+        if key == 'M1C_PROXY_USED':
+            key = M1C_PROXY_USED
+        elif key == 'M1C_PROXY_PORT':
+            key = M1C_PROXY_PORT
+        elif key == 'M1C_QSOAP_PORT':
+            key = M1C_QSOAP_PORT
+        elif key == 'M1C_IGNORE_SERVER_CERT':
+            key = M1C_IGNORE_SERVER_CERT
+        elif key == 'M1C_COUNT_SOCKETS':
+            key = M1C_COUNT_SOCKETS
+        elif key == 'M1C_IGNORE_SERVER_CERT_CN':
+            key = M1C_IGNORE_SERVER_CERT_CN
+        elif key == 'M1C_LOGIN2_USER_PARAM':
+            key = M1C_LOGIN2_USER_PARAM
+        else:
+            raise PyComException(("pyCom Error: Unknown uint parameter "+str(key)+" for "+self._ip))
+
+        return self._pycom.TARGET_GetUintParam(self._ctrlHandle, key)
+
+    def getStringParam(self, key):
+        """
+        Gets the value of a special parameter from the target. Possible keys are: 'M1C_PROXY_HOST', 'M1C_PROXY_USERNAME', 'M1C_PROXY_PASSWD',
+        'M1C_QSOAP_PATH' and 'M1C_VHD_SESSIONNAME'.
+        """
+        if key == 'M1C_PROXY_HOST':
+            key = M1C_PROXY_HOST
+        elif key == 'M1C_PROXY_USERNAME':
+            key = M1C_PROXY_USERNAME
+        elif key == 'M1C_PROXY_PASSWD':
+            key = M1C_PROXY_PASSWD
+        elif key == 'M1C_QSOAP_PATH':
+            key = M1C_QSOAP_PATH
+        elif key == 'M1C_VHD_SESSIONNAME':
+            key = M1C_VHD_SESSIONNAME
+        else:
+            raise PyComException(("pyCom Error: Unknown string parameter "+str(key)))
+
+        value = self._pycom.TARGET_GetStringParam(self._ctrlHandle, key)
+
+        if type(value) == bytes:
+            return str(value.decode('utf-8'))
+        else:
+            return str(value)
 
 class M1SVIObserver:
     """
@@ -1282,7 +1467,7 @@ class M1SVIObserver:
         # Get the SVI variable handles
         self._sviHandles = []
         for sviName in self.sviNames:
-            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode())
+            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode('utf-8'))
             if(sviHandle == None):
                 raise PyComException(("pyCom Error: Can't allocate SviVariable["+sviName+"] on Controller["+self.m1ctrl._ip+"]"))
             self._sviHandles.append(sviHandle)
@@ -1315,7 +1500,7 @@ class M1SVIObserver:
 
             identifiyer = self._sviInfos[i].format & 0x0f
             if not(self._sviInfos[i].format & SVI_F_OUT):
-                raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] is not read able!")
+                raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] is not readable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
                 if(identifiyer == SVI_F_CHAR8):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
@@ -1461,11 +1646,11 @@ class M1SVIObserver:
                     value = self._sviValues[self._indicesChanged[i]]
 
                 if type(value) == bytes:
-                    value = str(value.decode())
+                    value = str(value.decode('utf-8'))
                 elif self._sviTypes[self._indicesChanged[i]] == 'char8' or self._sviTypes[self._indicesChanged[i]] == ['char8']:
-                    value = value.decode('utf-8')
+                    value = str(value.decode('utf-8'))
                 elif self._sviTypes[self._indicesChanged[i]] == 'char16' or self._sviTypes[self._indicesChanged[i]] == ['char16']:
-                    value = value
+                    value = str(value)
                 elif self._sviTypes[self._indicesChanged[i]] == [bool]:
                     value = [bool(value.ARRAY[i]) for i in range(value.array_size)]
                 elif self._sviTypes[self._indicesChanged[i]] == [int]:
@@ -1483,11 +1668,11 @@ class M1SVIObserver:
                     value = self._sviValues[i]
 
                 if type(value) == bytes:
-                    value = str(value.decode())
+                    value = str(value.decode('utf-8'))
                 elif self._sviTypes[i] == 'char8' or self._sviTypes[i] == ['char8']:
-                    value = value.decode('utf-8')
+                    value = str(value.decode('utf-8'))
                 elif self._sviTypes[i] == 'char16' or self._sviTypes[i] == ['char16']:
-                    value = value
+                    value = str(value)
                 elif self._sviTypes[i] == [bool]:
                     value = [bool(value.ARRAY[i]) for i in range(value.array_size)]
                 elif self._sviTypes[i] == [int]:
@@ -1567,7 +1752,7 @@ class M1SVIReader:
         # Get the SVI variable handles
         self._sviHandles = []
         for sviName in self.sviNames:
-            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode())
+            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode('utf-8'))
             if(sviHandle == None):
                 raise PyComException(("pyCom Error: Can't allocate SviVariable["+sviName+"] on Controller["+self.m1ctrl._ip+"]"))
             self._sviHandles.append(sviHandle)
@@ -1600,7 +1785,7 @@ class M1SVIReader:
 
             identifiyer = self._sviInfos[i].format & 0x0f
             if not(self._sviInfos[i].format & SVI_F_OUT):
-                raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not read able!")
+                raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not readable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
                 if(identifiyer == SVI_F_CHAR8):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
@@ -1723,11 +1908,11 @@ class M1SVIReader:
                 value = self._sviValues[i]
 
             if type(value) == bytes:
-                sviValues.append(str(value.decode()))
+                sviValues.append(str(value.decode('utf-8')))
             elif self._sviTypes[i] == 'char8' or self._sviTypes[i] == ['char8']:
-                sviValues.append(value.decode('utf-8'))
+                sviValues.append(str(value.decode('utf-8')))
             elif self._sviTypes[i] == 'char16' or self._sviTypes[i] == ['char16']:
-                sviValues.append(value)
+                sviValues.append(str(value))
             elif self._sviTypes[i] == [bool]:
                 sviValues.append([bool(value.ARRAY[i]) for i in range(value.array_size)])
             elif self._sviTypes[i] == [int]:
@@ -1796,7 +1981,7 @@ class M1SVIWriter:
         # Get the SVI variable handles
         self._sviHandles = []
         for sviName in self.sviNames:
-            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode())
+            sviHandle = self.m1ctrl._pycom.TARGET_CreateVariable(self.m1ctrl.getCtrlHandle(), sviName.encode('utf-8'))
             if(sviHandle == None):
                 raise PyComException(("pyCom Error: Can't allocate SviVariable["+sviName+"] on Controller["+self.m1ctrl._ip+"]"))
             self._sviHandles.append(sviHandle)
@@ -1829,7 +2014,7 @@ class M1SVIWriter:
 
             identifiyer = self._sviInfos[i].format & 0x0f
             if not(self._sviInfos[i].format & SVI_F_IN):
-                raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not write able!")
+                raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not writable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
                 if(identifiyer == SVI_F_CHAR8):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
@@ -2028,16 +2213,16 @@ class M1TargetFinder:
                     keywords = [keyword for keyword in dir(targetsInfo[dev].extPingR) if not keyword.startswith('_')]
                     for keyword in keywords:
                         if type(getattr(targetsInfo[dev].extPingR, keyword)) == bytes:
-                            pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword).decode()                        
+                            pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword).decode('utf-8')
                         else:    
                             pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword)
                     targetInfo['extPingR'] = pingInfo
                 else:
                     if type(getattr(targetsInfo[dev], targetinfoitem)) == bytes:
-                        targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem).decode()
+                        targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem).decode('utf-8')
                     else:
                         targetInfo[targetinfoitem] = getattr(targetsInfo[dev], targetinfoitem)
-            self._targets[targetsInfo[dev].extPingR.ProdNb.decode()] = targetInfo
+            self._targets[targetsInfo[dev].extPingR.ProdNb.decode('utf-8')] = targetInfo
                     
         return self._targets.copy()
 
@@ -2053,7 +2238,7 @@ class M1TargetFinder:
 
         for keyword in keywords:
             if type(getattr(buffer, keyword)) == bytes:
-                pingInfo[keyword] = getattr(buffer, keyword).decode()                        
+                pingInfo[keyword] = getattr(buffer, keyword).decode('utf-8')
             else:    
                 pingInfo[keyword] = getattr(buffer, keyword)
         self._smitargetsInfo = pingInfo
@@ -2105,7 +2290,7 @@ class _M1SwModule:
         """
         Creates a handle to a software module. This function is already automatically called after initializing a software module.
         """
-        self._modHandle = self.m1ctrl._pycom.TARGET_CreateModule(self.m1ctrl.getCtrlHandle(), self.name.encode())
+        self._modHandle = self.m1ctrl._pycom.TARGET_CreateModule(self.m1ctrl.getCtrlHandle(), self.name.encode('utf-8'))
         if(self.m1ctrl._pycom.MODULE_Connect(self._modHandle) != OK):
             raise PyComException(("pyCom Error: Can't attach to SwModule:"+self.name+" on Controller["+self.m1ctrl._ip+"]"))
 
@@ -2130,7 +2315,7 @@ class _M1SwModule:
         if(self.m1ctrl._pycom.MODULE_GetVariables(self.getModHandle(), nbsvivars, myVarList) != OK):
             raise PyComException(("pyCom Error: Can't get SviVariable List from Module["+self.name+"] on Controller["+self.m1ctrl._ip+"]"))
         for num in range(0, nbsvivars):
-            py_svivarlist[myVarEntrys.ARRAY[num].name.decode()] = _SVIVariable(myVarEntrys.ARRAY[num].name.decode(), self)
+            py_svivarlist[myVarEntrys.ARRAY[num].name.decode('utf-8')] = _SVIVariable(myVarEntrys.ARRAY[num].name.decode('utf-8'), self)
         return py_svivarlist
 
 class _SVIVariable:
@@ -2150,7 +2335,7 @@ class _SVIVariable:
     40
     >>> sviVariable.write(22)                                                                   # doctest: +SKIP
     >>> sviVariable.getConnectionState()
-    0
+    'ONLINE'
     >>> sviVariable.detach()
     >>> mh.disconnect()
     0
@@ -2193,7 +2378,7 @@ class _SVIVariable:
         """
         Creates a handle to a variable and initializes it. This function is already automatically called after initializing a software module.
         """
-        self._varHandle = self._m1ctrl._pycom.TARGET_CreateVariable(self._m1ctrl.getCtrlHandle(), self.name.encode())
+        self._varHandle = self._m1ctrl._pycom.TARGET_CreateVariable(self._m1ctrl.getCtrlHandle(), self.name.encode('utf-8'))
         if(self._varHandle == None):
             raise PyComException(("pyCom Error: Can't allocate SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]"))
         if(self._m1ctrl._pycom.TARGET_InitVariables(self._m1ctrl.getCtrlHandle(), self._varHandle, 1) <= 0):
@@ -2213,14 +2398,14 @@ class _SVIVariable:
         """
         Read a single SVI variable from the target.
         """
-        if(self.getConnectionState() != ONLINE):
+        if(self.getConnectionState() != 'ONLINE'):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
         
         value = None
         valueType = None
         identifiyer = self._varInfo.format & 0x0f
         if not(self._varInfo.format & SVI_F_OUT):
-            raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not read able!")
+            raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not readable!")
         if(self._varInfo.format & SVI_F_BLK):
             if(identifiyer == SVI_F_CHAR8):
                 value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
@@ -2333,11 +2518,11 @@ class _SVIVariable:
             value = value.value
             
         if type(value) == bytes:
-            return str(value.decode())
+            return str(value.decode('utf-8'))
         elif valueType == 'char8' or valueType == ['char8']:
-            return value.decode('utf-8')
+            return str(value.decode('utf-8'))
         elif valueType == 'char16' or valueType == ['char16']:
-            return value
+            return str(value)
         elif valueType == [bool]:
             return [bool(value.ARRAY[i]) for i in range(value.array_size)]
         elif valueType == [int]:
@@ -2351,13 +2536,13 @@ class _SVIVariable:
         """
         Write a single SVI variable to the target.
         """
-        if(self.getConnectionState() != ONLINE):
+        if(self.getConnectionState() != 'ONLINE'):
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
 
         value = None
         identifiyer = self._varInfo.format & 0x0f
         if not(self._varInfo.format & SVI_F_IN):
-            raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not write able!")
+            raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not writable!")
         if(self._varInfo.format & SVI_F_BLK):
             if(identifiyer == SVI_F_CHAR8):
                 if type(data) != str or self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo) < len(data):
@@ -2571,21 +2756,92 @@ class _SVIVariable:
         
     def getConnectionState(self):
         """
-        Get the connection state of the variable.
+        Get the connection state of the SVI variable.
         """
         state = ctypes.c_uint(0)
         self._m1ctrl._pycom.VARIABLE_GetState(self._varHandle, ctypes.pointer(state))
-        return state.value
+
+        if state.value == ONLINE:
+            return 'ONLINE'
+        elif state.value == OFFLINE:
+            return 'OFFLINE'
+        elif state.value == ERROR:
+            return 'ERROR'
+        else:
+            raise PyComException(("pyCom Error: Get connection state returned unknown value "+str(state.value)+" for Controller["+self._ip+"]"))
 
     def getFullName(self):
         """
-        Get the full name of the variable.
+        Get the full name of the SVI variable.
         """
-        fullName = self._m1ctrl._pycom.VARIABLE_GetFullName(self._varHandle).decode()
+        fullName = str(self._m1ctrl._pycom.VARIABLE_GetFullName(self._varHandle).decode('utf-8'))
         if fullName == "":
             raise PyComException("pyCom Error: Could not get full SVI Variable name of " + str(self.name))
 
         return fullName
+
+    def getArrayLen(self):
+        """
+        Get the array length of the SVI variable.
+        """
+        return self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo)
+
+    def getBaseDataType(self):
+        """
+        Get the base datatype of the SVI variable.
+        """
+        sviDataType = self._m1ctrl._pycom.VARIABLE_getBaseDataType(self._varInfo)
+
+        if sviDataType == SVI_F_UNKNOWN:
+            return "SVI_F_UNKNOWN"
+        elif sviDataType == SVI_F_UINT1:
+            return "SVI_F_UINT1"
+        elif sviDataType == SVI_F_UINT8:
+            return "SVI_F_UINT8"
+        elif sviDataType == SVI_F_SINT8:
+            return "SVI_F_SINT8"
+        elif sviDataType == SVI_F_UINT16:
+            return "SVI_F_UINT16"
+        elif sviDataType == SVI_F_SINT16:
+            return "SVI_F_SINT16"
+        elif sviDataType == SVI_F_UINT32:
+            return "SVI_F_UINT32"
+        elif sviDataType == SVI_F_SINT32:
+            return "SVI_F_SINT32"
+        elif sviDataType == SVI_F_REAL32:
+            return "SVI_F_REAL32"
+        elif sviDataType == SVI_F_BOOL8:
+            return "SVI_F_BOOL8"
+        elif sviDataType == SVI_F_CHAR8:
+            return "SVI_F_CHAR8"
+        elif sviDataType == SVI_F_MIXED:
+            return "SVI_F_MIXED"
+        elif sviDataType == SVI_F_UINT64:
+            return "SVI_F_UINT64"
+        elif sviDataType == SVI_F_SINT64:
+            return "SVI_F_SINT64"
+        elif sviDataType == SVI_F_REAL64:
+            return "SVI_F_REAL64"
+        elif sviDataType == SVI_F_CHAR16:
+            return "SVI_F_CHAR16"
+        elif sviDataType == SVI_F_STRINGLSTBASE:
+            return "SVI_F_STRINGLSTBASE"
+        elif sviDataType == SVI_F_USTRINGLSTBASE:
+            return "SVI_F_USTRINGLSTBASE"
+        else:
+            raise PyComException("pyCom Error: Unknown datatype for SVI variable " + str(self.name))
+
+    def checkReadable(self):
+        """
+        Check if the SVI variable is readable (returns True or False).
+        """
+        return bool(self._m1ctrl._pycom.VARIABLE_IsReadable(self._varInfo))
+
+    def checkWritable(self):
+        """
+        Check if the SVI variable is writable (returns True or False).
+        """
+        return bool(self._m1ctrl._pycom.VARIABLE_IsWritable(self._varInfo))
     
 if __name__ == "__main__":
 

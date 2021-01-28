@@ -207,7 +207,6 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.getSessionLiveTime')
 
-
     def test_getLoginInfo(self):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
@@ -394,6 +393,25 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.disconnect')
 
+    def test_getConnectionState(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        self.assertEqual(mh.getConnectionState(), 'ONLINE')
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.getConnectionState')
+
+    def test_getTargetState(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        self.assertEqual(mh.getTargetState()['appState'], 'RES_S_RUN')
+        self.assertGreater(mh.getTargetState()['rebootCount'], 0)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.getTargetState')
+
     def test_sendCall(self):
         if fastTest:
             print('Requires reboot, skipped for faster testing')
@@ -407,6 +425,40 @@ class Test_M1Controller(unittest.TestCase):
 
             testedMethods.append('M1Controller.sendCall')
 
+    def test_getsetUintParam(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        keys = ['M1C_PROXY_USED', 'M1C_PROXY_PORT', 'M1C_QSOAP_PORT', 'M1C_IGNORE_SERVER_CERT', 'M1C_COUNT_SOCKETS', 
+                'M1C_IGNORE_SERVER_CERT_CN', 'M1C_LOGIN2_USER_PARAM']
+        for key in keys:
+            original = mh.getUintParam(key)
+            mh.setUintParam(key=key, value=1)
+            self.assertEqual(1, mh.getUintParam(key))
+            mh.setUintParam(key=key, value=original)
+            self.assertEqual(original, mh.getUintParam(key))
+
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.setUintParam')
+        testedMethods.append('M1Controller.getUintParam')
+
+    def test_getsetStringParam(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        keys = ['M1C_PROXY_HOST', 'M1C_PROXY_USERNAME', 'M1C_PROXY_PASSWD', 'M1C_QSOAP_PATH', 'M1C_VHD_SESSIONNAME']
+        for key in keys:
+            original = mh.getStringParam(key)
+            mh.setStringParam(key=key, value='test')
+            self.assertEqual('test', mh.getStringParam(key))
+            mh.setStringParam(key=key, value=original)
+            self.assertEqual(original, mh.getStringParam(key))
+
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.setStringParam')
+        testedMethods.append('M1Controller.getStringParam')
 
 class Test_M1SVIObserver(unittest.TestCase):
     def test_detach(self):
@@ -1219,7 +1271,7 @@ class Test_SVIVariable(unittest.TestCase):
             sviVariable.write(60)
         except m1com.PyComException as error:
             error = str(error.value)
-            self.assertEqual(error, 'pyCom Error: Svi Variable[RES/CPU/TempCelsius] is not write able!')
+            self.assertEqual(error, 'pyCom Error: Svi Variable[RES/CPU/TempCelsius] is not writable!')
 
         if fastTest:
             print('Requires reboot, skipped for faster testing')
@@ -1322,8 +1374,8 @@ class Test_SVIVariable(unittest.TestCase):
         sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         connectionState = sviVariable.getConnectionState()
 
-        self.assertEqual(connectionState, 0)
-        self.assertEqual(type(connectionState), int)
+        self.assertEqual(connectionState, 'ONLINE')
+        self.assertEqual(type(connectionState), str)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('_SVIVariable.getConnectionState')
@@ -1341,6 +1393,103 @@ class Test_SVIVariable(unittest.TestCase):
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('_SVIVariable.getFullName')
+
+    def test_getArrayLen(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
+        ret = sviVariable.getArrayLen()
+
+        self.assertEqual(type(ret), int)
+        self.assertEqual(ret, 1)
+
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/Version', swModule)
+        ret = sviVariable.getArrayLen()
+
+        self.assertEqual(type(ret), int)
+        self.assertEqual(ret, 20)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('_SVIVariable.getArrayLen')
+
+    def test_getBaseDataType(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+
+            # Install the svi test application
+            sviAppInstall(mh)
+
+            # Perform the write tests
+            swModule = m1com._M1SwModule('SVIWRITE', mh)
+            checkVariables = { 'boolVar': 'SVI_F_UINT1', 'bool8Var': 'SVI_F_BOOL8', 'uInt8Var': 'SVI_F_UINT8', 'sInt8Var': 'SVI_F_SINT8',
+                               'uInt16Var': 'SVI_F_UINT16', 'sInt16Var': 'SVI_F_SINT16', 'uInt32Var': 'SVI_F_UINT32', 'sInt32Var': 'SVI_F_SINT32',
+                               'uInt64Var': 'SVI_F_UINT64', 'sInt64Var': 'SVI_F_SINT64', 'real32Var': 'SVI_F_REAL32', 'real64Var': 'SVI_F_REAL64',
+                               'char8Var': 'SVI_F_CHAR8', 'char16Var': 'SVI_F_CHAR16', 'stringVar': 'SVI_F_CHAR8',
+                               'boolArray': 'SVI_F_UINT1', 'bool8Array': 'SVI_F_BOOL8', 'uInt8Array': 'SVI_F_UINT8', 'sInt8Array': 'SVI_F_SINT8',
+                               'uInt16Array': 'SVI_F_UINT16', 'sInt16Array': 'SVI_F_SINT16', 'uInt32Array': 'SVI_F_UINT32', 'sInt32Array': 'SVI_F_SINT32',
+                               'uInt64Array': 'SVI_F_UINT64', 'sInt64Array': 'SVI_F_SINT64', 'real32Array': 'SVI_F_REAL32', 'real64Array': 'SVI_F_REAL64',
+                               'char8Array': 'SVI_F_CHAR8', 'char16Array': 'SVI_F_CHAR16'
+                               }
+
+            Error = False
+            ErrorMsg = ''
+            try:
+                for key in checkVariables:
+                    sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+
+                    obtainedDataType = sviVariable.getBaseDataType()
+                    realDataType = checkVariables[key]
+
+                    self.assertEqual(type(obtainedDataType), str)
+                    self.assertEqual(obtainedDataType, realDataType)
+
+            except Exception as e:
+                ErrorMsg = e
+                Error = True
+                print(str(e))
+
+            # Remove the svi test application
+            sviAppRemove(mh)
+
+            if Error:
+                raise ErrorMsg
+            else:
+                testedMethods.append('_SVIVariable.getBaseDataType')
+
+    def test_checkReadable(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
+        ret = sviVariable.checkReadable()
+
+        self.assertEqual(type(ret), bool)
+        self.assertEqual(ret, True)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('_SVIVariable.checkReadable')
+
+    def test_checkWritable(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        swModule = m1com._M1SwModule('RES', mh)
+        sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
+        ret = sviVariable.checkWritable()
+
+        self.assertEqual(type(ret), bool)
+        self.assertEqual(ret, False)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('_SVIVariable.checkWritable')
 
 if __name__ == "__main__":
     
