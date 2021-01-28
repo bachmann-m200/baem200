@@ -907,6 +907,10 @@ class M1Controller:
     0
     >>> mh.getLoginInfo()                                                                       # doctest: +SKIP
     >>> mh.renewConnection()
+    >>> mh.getConnectionState()                                                                 # doctest: +SKIP
+    'ONLINE'
+    >>> mh.getTargetState()                                                                     # doctest: +SKIP
+    {'appState': 'RES_S_RUN', 'rebootCount': 100}
     >>> mh.getNumberofSwModules()                                                               # doctest: +SKIP
     9
     >>> mh.getSwModuleByName('RES')                                                             # doctest: +SKIP
@@ -923,6 +927,12 @@ class M1Controller:
     >>> mh.reboot()                                                                             # doctest: +SKIP
     >>> mh.sendCall("MOD", 134, ctypes.c_int32(0), ctypes.c_int32(0), timeout=3000, version=2)  # doctest: +SKIP
     c_long(0)
+    >>> mh.setUintParam('M1C_IGNORE_SERVER_CERT', 1)
+    >>> mh.getUintParam('M1C_IGNORE_SERVER_CERT')
+    1
+    >>> mh.setStringParam('M1C_PROXY_USERNAME', 'Example')
+    >>> mh.getStringParam('M1C_PROXY_USERNAME')
+    'Example'
     >>> mh.disconnect()
     0
     """
@@ -2336,6 +2346,16 @@ class _SVIVariable:
     >>> sviVariable.write(22)                                                                   # doctest: +SKIP
     >>> sviVariable.getConnectionState()
     'ONLINE'
+    >>> sviVariable.getBaseDataType()
+    'SVI_F_SINT32'
+    >>> sviVariable.checkWritable()
+    False
+    >>> sviVariable.checkReadable()
+    True
+    >>> sviVariable.getArrayLen()
+    1
+    >>> sviVariable.getFullName()
+    'RES/CPU/TempCelsius'
     >>> sviVariable.detach()
     >>> mh.disconnect()
     0
