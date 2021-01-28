@@ -460,6 +460,16 @@ class Test_M1Controller(unittest.TestCase):
         testedMethods.append('M1Controller.setStringParam')
         testedMethods.append('M1Controller.getStringParam')
 
+    def test_getMaxCallSize(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        self.assertEqual(type(mh.getMaxCallSize()), int)
+        self.assertEqual(mh.getMaxCallSize(), 8148)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.getMaxCallSize')
+
 class Test_M1SVIObserver(unittest.TestCase):
     def test_detach(self):
         mh = m1com.M1Controller(ip=ipAddress)

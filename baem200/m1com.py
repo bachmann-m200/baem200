@@ -933,6 +933,8 @@ class M1Controller:
     >>> mh.setStringParam('M1C_PROXY_USERNAME', 'Example')
     >>> mh.getStringParam('M1C_PROXY_USERNAME')
     'Example'
+    >>> mh.getMaxCallSize()
+    8148
     >>> mh.disconnect()
     0
     """
@@ -1414,6 +1416,16 @@ class M1Controller:
             return str(value.decode('utf-8'))
         else:
             return str(value)
+
+    def getMaxCallSize(self):
+        """
+        Gets the maximum length of an rpc call.
+        """
+        size = ctypes.c_uint()
+        if(self._pycom.TARGET_GetMaxCallSize(self._ctrlHandle, ctypes.pointer(size)) != OK):
+            raise PyComException(("pyCom Error: Can't get max call size for controller["+self._ip+"]"))
+
+        return size.value
 
 class M1SVIObserver:
     """
