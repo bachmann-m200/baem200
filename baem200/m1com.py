@@ -11,6 +11,8 @@ from ctypes.test.test_pointers import ctype_types
 MIO_INFOLEN_A        = 200
 MIO_CNAMELEN_A       = 24
 MIO_PRODNBLEN_A      = 12
+M_PATHLEN            = 80
+M_PATHLEN_A          = ((M_PATHLEN + 1 + 3) & 0xfffffffc)
 M_FILENAMELEN_A      = 16
 M_MODNAMELEN_A       = 12
 M_UNAMELEN2_A        = 64
@@ -23,6 +25,65 @@ ONLINE               = 0
 OFFLINE              = 1
 ERROR                = 2
 OK                   = 0
+
+# Return values for application
+M_E_INSTALL          = ctypes.c_int32(0x80000122).value
+M_E_SMODE            = ctypes.c_int32(0x80000121).value
+M_E_NOMEM            = ctypes.c_int32(0x80000123).value
+M_E_NOGLOBMEM        = ctypes.c_int32(0x80000153).value
+M_E_NOAPPMEM         = ctypes.c_int32(0x80000154).value
+M_E_NOFILE           = ctypes.c_int32(0x80000111).value
+M_E_BADREAD          = ctypes.c_int32(0x80000142).value
+M_E_WRONGVERS        = ctypes.c_int32(0x8000013E).value
+M_E_BADELEM          = ctypes.c_int32(0x80000136).value
+M_E_BADSEEK          = ctypes.c_int32(0x80000144).value
+M_E_NOLIBREG         = ctypes.c_int32(0x80000148).value
+M_E_BADCHECK         = ctypes.c_int32(0x80000145).value
+M_E_BADVXWLD         = ctypes.c_int32(0x80000146).value
+M_E_BADMEMLD         = ctypes.c_int32(0x80000147).value
+M_E_NOWRITE          = ctypes.c_int32(0x80000141).value
+M_E_NOMODNBR         = ctypes.c_int32(0x80000125).value
+M_E_NOMOD2           = ctypes.c_int32(0x8000012A).value
+M_E_NOENTRY          = ctypes.c_int32(0x8000014E).value
+M_E_NOREG            = ctypes.c_int32(0x8000014F).value
+M_E_BADINIT          = ctypes.c_int32(0x80000150).value
+M_E_BADNAME          = ctypes.c_int32(0x80000137).value
+M_E_FAILED           = ctypes.c_int32(0x80000100).value
+M_E_NOTSUPP          = ctypes.c_int32(0x80000124).value
+M_E_NOMOD1           = ctypes.c_int32(0x80000129).value
+M_E_NODELSYS         = ctypes.c_int32(0x80000171).value
+M_E_NODELTSK         = ctypes.c_int32(0x8000012C).value
+M_ES_SMI             = 0x00020000
+SMI_E_OK             = 0
+SMI_E_NAME           = (M_ES_SMI | M_E_BADNAME)
+SMI_E_FAILED         = (M_ES_SMI | M_E_FAILED)
+SMI_E_SUPPORT        = (M_ES_SMI | M_E_NOTSUPP)
+SMI_E_NOMEM          = (M_ES_SMI | M_E_NOMEM)
+M_ES_MOD             = 0x00080000
+MOD_E_OK             = 0
+MOD_E_INSTALL        = (M_ES_MOD | M_E_INSTALL)
+MOD_E_SMODE          = (M_ES_MOD | M_E_SMODE)
+MOD_E_NOMEM          = (M_ES_MOD | M_E_NOMEM)
+MOD_E_NOGLOBMEM      = (M_ES_MOD | M_E_NOGLOBMEM)
+MOD_E_NOAPPMEM       = (M_ES_MOD | M_E_NOAPPMEM)
+MOD_E_NOFILE         = (M_ES_MOD | M_E_NOFILE)
+MOD_E_BADREAD        = (M_ES_MOD | M_E_BADREAD)
+MOD_E_WRONGVERS      = (M_ES_MOD | M_E_WRONGVERS)
+MOD_E_BADELEM        = (M_ES_MOD | M_E_BADELEM)
+MOD_E_BADSEEK        = (M_ES_MOD | M_E_BADSEEK)
+MOD_E_NOLIBREG       = (M_ES_MOD | M_E_NOLIBREG)
+MOD_E_BADCHECK       = (M_ES_MOD | M_E_BADCHECK)
+MOD_E_BADVXWLD       = (M_ES_MOD | M_E_BADVXWLD)
+MOD_E_BADMEMLD       = (M_ES_MOD | M_E_BADMEMLD)
+MOD_E_NOWRITE        = (M_ES_MOD | M_E_NOWRITE)
+MOD_E_NOMODNBR       = (M_ES_MOD | M_E_NOMODNBR)
+MOD_E_NOMOD2         = (M_ES_MOD | M_E_NOMOD2)
+MOD_E_NOENTRY        = (M_ES_MOD | M_E_NOENTRY)
+MOD_E_NOREG          = (M_ES_MOD | M_E_NOREG)
+MOD_E_BADINIT        = (M_ES_MOD | M_E_BADINIT)
+MOD_E_NOMOD1         = (M_ES_MOD | M_E_NOMOD1)
+MOD_E_NODELSYS       = (M_ES_MOD | M_E_NODELSYS)
+MOD_E_NODELTASK      = (M_ES_MOD | M_E_NODELTSK)
 
 # Possible appstates for TARGET_GetTargetState:
 RES_S_RUN            = 1
@@ -86,6 +147,27 @@ SVI_F_REAL64         = 0x0e     #64-bit float */
 SVI_F_CHAR16         = 0x0f     #16-bit character (Unicode) */
 SVI_F_STRINGLSTBASE  = 0x10     #base of String list type */
 SVI_F_USTRINGLSTBASE = 0x11     #base of Unicode String list type */
+
+def ctypesArray2list(ctypesArray):
+    listInfo = []
+    for item in ctypesArray:
+        listInfo.append(item)
+    return listInfo
+
+def ctypesInfo2dict(ctypesInfo):
+    dictInfo = {}
+    for field in ctypesInfo._fields_:
+        dictKey = field[0]
+        dictValue = getattr(ctypesInfo, field[0])
+        if type(dictValue) == bytes:
+            dictValue = dictValue.decode('utf-8')
+        elif hasattr(dictValue, '_fields_'):
+            dictValue = ctypesInfo2dict(dictValue)
+        elif hasattr(dictValue, '_type_'):
+            dictValue = ctypesArray2list(dictValue)
+        dictInfo.update({dictKey:dictValue})
+
+    return dictInfo.copy()
 
 class CERT_CONTEXT(ctypes.Structure):
     _fields_ = [("dwCertEncodingType", ctypes.wintypes.DWORD),
@@ -300,6 +382,64 @@ class TARGET_INFO_ARRAY(ctypes.Structure):
         elems = (TARGET_INFO * num_of_structs)()
         self.ARRAY = ctypes.cast(elems, ctypes.POINTER(TARGET_INFO))
         self.array_size = num_of_structs
+
+class SMI_RESET_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_RESET_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
+class SMI_DEINIT_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_DEINIT_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
+class SMI_STOP_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_STOP_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
+class SMI_RUN_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_RUN_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
+class SYS_VERSION(ctypes.Structure):
+    _fields_ = [("Code", (ctypes.c_uint32*3)),
+                ("Type", ctypes.c_uint32)]
+
+class RES_MODXINFO(ctypes.Structure):
+    _fields_ = [("TypeName",    (ctypes.c_char*M_MODNAMELEN_A)),
+                ("AppName",     (ctypes.c_char*M_MODNAMELEN_A)),
+                ("AppIdx",      ctypes.c_uint32),
+                ("AppPart",     ctypes.c_uint32),
+                ("MinVers",     ctypes.c_uint32),
+                ("MaxVers",     ctypes.c_uint32),
+                ("MaxUser",     ctypes.c_uint32),
+                ("Attr",        ctypes.c_uint32),
+                ("ModuleId",    ctypes.c_uint32),
+                ("ActUser",     ctypes.c_uint32),
+                ("State",       ctypes.c_uint32),
+                ("ModuleNb",    ctypes.c_uint32),
+                ("TaskId",      ctypes.c_uint32),
+                ("PortNb",      ctypes.c_uint32),
+                ("TcpPortNb",   ctypes.c_uint32),
+                ("Checksum",    ctypes.c_uint32),
+                ("Version",     SYS_VERSION),
+                ("Incarnation", ctypes.c_uint32),
+                ("OwnTaskId",   ctypes.c_uint32),
+                ("Affinity",    ctypes.c_uint32),
+                ("Spare3",      ctypes.c_uint32)]
+
+class RES_MODXINFO_C(ctypes.Structure):
+    _fields_ = [("AppName", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class RES_MODXINFO_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32),
+                ("Inf",     RES_MODXINFO)]
 
 class MIO_GETDRV_C(ctypes.Structure):
     _fields_ = [("CardNb", ctypes.c_uint32),]
@@ -1166,7 +1306,8 @@ class M1Controller:
         recv = MIO_GETDRV_R()
         
         mio = self._pycom.TARGET_CreateModule(self._ctrlHandle, b"MIO")
-        self._pycom.MODULE_Connect(mio)
+        if(self._pycom.MODULE_Connect(mio) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[MIO] on Controller['"+self._ip+"']"))
         
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(100), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number 100 to Controller['"+self._ip+"']"))
@@ -1182,7 +1323,8 @@ class M1Controller:
         recv = MIO_GETDRV_R() 
 
         mio = self._pycom.TARGET_CreateModule(self._ctrlHandle, b"MIO")
-        self._pycom.MODULE_Connect(mio)
+        if(self._pycom.MODULE_Connect(mio) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[MIO] on Controller['"+self._ip+"']"))
 
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(100), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
@@ -1205,7 +1347,8 @@ class M1Controller:
         recv = MIO_GETEXTCDINF_R()
 
         mio = self._pycom.TARGET_CreateModule(self._ctrlHandle, b"MIO")
-        self._pycom.MODULE_Connect(mio)
+        if(self._pycom.MODULE_Connect(mio) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[MIO] on Controller['"+self._ip+"']"))
          
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(136), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
@@ -1231,7 +1374,8 @@ class M1Controller:
         recv = INF_CARDINFOLST_R()
         
         info = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"INFO")
-        self._pycom.MODULE_Connect(info)
+        if(self._pycom.MODULE_Connect(info) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[INFO] on Controller['"+self._ip+"']"))
 
         for _ in range(send.LastIdx):
             if(self._pycom.MODULE_SendCall(info, ctypes.c_uint(120), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
@@ -1276,7 +1420,9 @@ class M1Controller:
         Reboot the target.
         """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
-        self._pycom.MODULE_Connect(mod)
+        if(self._pycom.MODULE_Connect(mod) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[MOD] on Controller['"+self._ip+"']"))
+
         send = ctypes.c_int32(0)
         recv = ctypes.c_int32(0)        
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(134), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
@@ -1287,7 +1433,8 @@ class M1Controller:
         Reset all applications on the target.
         """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), b"MOD")        
-        self._pycom.MODULE_Connect(mod)
+        if(self._pycom.MODULE_Connect(mod) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module[MOD] on Controller['"+self._ip+"']"))
         send = ctypes.c_int32(0)
         recv = ctypes.c_int32(0)        
         if(self._pycom.MODULE_SendCall(mod, ctypes.c_uint(142), ctypes.c_uint(2), ctypes.pointer(send), 4, ctypes.pointer(recv), 4, 3000) != OK):
@@ -1298,7 +1445,8 @@ class M1Controller:
         Send a custom SMI call to the target.
         """
         mod = self._pycom.TARGET_CreateModule(self.getCtrlHandle(), moduleName.encode('utf-8'))
-        self._pycom.MODULE_Connect(mod)
+        if (self._pycom.MODULE_Connect(mod) != OK):
+            raise PyComException(("pyCom Error: Could not connect to module["+str(moduleName)+"] on Controller['"+self._ip+"']"))
         sendSize = ctypes.c_ushort(ctypes.sizeof(send))
         recvSize = ctypes.c_ushort(ctypes.sizeof(recv))
         returnSendCall = self._pycom.MODULE_SendCall(
@@ -1309,7 +1457,7 @@ class M1Controller:
             sendSize, 
             ctypes.pointer(recv), 
             recvSize, 
-            ctypes.c_uint(timeout) )
+            ctypes.c_uint(timeout))
         if(returnSendCall != OK):
             raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']"))
         return recv
@@ -1426,6 +1574,143 @@ class M1Controller:
             raise PyComException(("pyCom Error: Can't get max call size for controller["+self._ip+"]"))
 
         return size.value
+
+class M1Application:
+    """
+    The M1Application class. Can be used to stop, start, reset, deinit an application on a target.
+
+    Usage:
+
+    >>> mh = M1Controller(ip='169.254.141.136')
+    >>> mh.connect(timeout=3000)
+    >>> app = M1Application('SVIWRITE', mh)                                                     # doctest: +SKIP
+    >>> app.stop()                                                                              # doctest: +SKIP
+    >>> app.start()                                                                             # doctest: +SKIP
+    >>> app.reset()                                                                             # doctest: +SKIP
+    >>> app.deinit()                                                                            # doctest: +SKIP
+    >>> app.getInfo()                                                                           # doctest: +SKIP
+    >>> app.getState()                                                                          # doctest: +SKIP
+    >>> mh.disconnect()
+    0
+    """
+
+    def __init__(self, applicationName, m1controller):
+
+        if type(applicationName) != str:
+            raise PyComException(("pyCom Error: Expected 'applicationName' argument to be of type 'str'!"))
+        if len(applicationName) > 8:
+            print("pyCom Warning: Argument 'applicationName' longer than 8 characters and will be sliced to "+applicationName[0:8].upper()+"!")
+            applicationName = applicationName[0:8]
+
+        self.applicationName = applicationName.upper()
+        self._m1ctrl = m1controller
+
+    def deinit(self):
+        """
+        Deinitializes the application on the target.
+        """
+        send = SMI_DEINIT_C()
+        send.AppName = self.applicationName.encode('utf-8')
+        recv = SMI_DEINIT_R()
+        self._m1ctrl.sendCall(self.applicationName, 4, send, recv)
+        if recv.RetCode == SMI_E_OK:
+            pass
+        elif recv.RetCode == SMI_E_NAME:
+            raise PyComException(("pyCom Error: Could not deinitialize software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+        elif recv.RetCode == SMI_E_FAILED:
+            raise PyComException(("pyCom Error: Could not deinitialize software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+        else:
+            raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for deinit on target Controller["+self._m1ctrl._ip+"]!"))
+
+    def reset(self):
+        """
+        Resets the application on the target.
+        """
+        send = SMI_RESET_C()
+        send.AppName = self.applicationName.encode('utf-8')
+        recv = SMI_RESET_R()
+        self._m1ctrl.sendCall(self.applicationName, 6, send, recv)
+        if recv.RetCode == SMI_E_OK:
+            pass
+        elif recv.RetCode == SMI_E_NAME:
+            raise PyComException(("pyCom Error: Could not reset software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+        elif recv.RetCode == SMI_E_FAILED:
+            raise PyComException(("pyCom Error: Could not reset software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+        else:
+            raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for reset on target Controller["+self._m1ctrl._ip+"]!"))
+
+    def stop(self):
+        """
+        Stops the application on the target.
+        """
+        send = SMI_STOP_C()
+        send.AppName = self.applicationName.encode('utf-8')
+        recv = SMI_STOP_R()
+        self._m1ctrl.sendCall(self.applicationName, 18, send, recv)
+        if recv.RetCode == SMI_E_OK:
+            pass
+        elif recv.RetCode == SMI_E_NAME:
+            raise PyComException(("pyCom Error: Could not stop software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+        elif recv.RetCode == SMI_E_FAILED:
+            raise PyComException(("pyCom Error: Could not stop software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+        else:
+            raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for stop on target Controller["+self._m1ctrl._ip+"]!"))
+
+    def start(self):
+        """
+        Starts the stopped application on the target.
+        """
+        send = SMI_RUN_C()
+        send.AppName = self.applicationName.upper().encode('utf-8')
+        recv = SMI_RUN_R()
+        self._m1ctrl.sendCall(self.applicationName, 20, send, recv)
+        if recv.RetCode == SMI_E_OK:
+            pass
+        elif recv.RetCode == SMI_E_NAME:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+        elif recv.RetCode == SMI_E_FAILED:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+        else:
+            raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for run on target Controller["+self._m1ctrl._ip+"]!"))
+
+    def getInfo(self):
+        """
+        Gets info about the application from the target.
+        """
+        send = RES_MODXINFO_C()
+        send.AppName = self.applicationName.encode('utf-8')
+        recv = RES_MODXINFO_R()
+        self._m1ctrl.sendCall('RES', 116, send, recv)
+        if recv.RetCode != OK:
+            raise PyComException(("pyCom Error: Could not get information about application from target Controller["+self._m1ctrl._ip+"]!"))
+
+        return ctypesInfo2dict(recv.Inf)
+
+    def getState(self):
+        """
+        Gets the current state of the application from the target.
+        """
+        appState = self.getInfo()['State']
+        if appState == RES_S_RUN:
+            appState = 'RES_S_RUN'
+        elif appState == RES_S_ERROR:
+            appState = 'RES_S_ERROR'
+        elif appState == RES_S_STOP:
+            appState = 'RES_S_STOP'
+        elif appState == RES_S_INIT:
+            appState = 'RES_S_INIT'
+        elif appState == RES_S_DEINIT:
+            appState = 'RES_S_DEINIT'
+        elif appState == RES_S_EOI:
+            appState = 'RES_S_EOI'
+        elif appState == RES_S_RESET:
+            appState = 'RES_S_RESET'
+        elif appState == RES_S_WARNING:
+            appState = 'RES_S_WARNING'
+        else:
+            raise PyComException(("pyCom Error: Get target state returned unknown value for appState["+str(appState.value)+"] for Controller["+self._ip+"]"))
+
+        return appState
 
 class M1SVIObserver:
     """

@@ -31,7 +31,23 @@ def assertNotBytes(test, methodReturn):
                     assertType = type(getattr(methodReturn, attribute))
                     test.assertNotEqual(assertType, bytes)
 
-def sviAppInstall(mh):
+def sviAppInstall():
+
+    # Connect to controller
+    mh = m1com.M1Controller(ip=ipAddress)
+    mh.connect(timeout=3000)
+
+    # First check if the test application is still running
+    application = m1com.M1Application('SVIWRITE', mh)
+    error = None
+    try:
+        application.getState()
+    except Exception as e:
+        error = e.value
+
+    # Expects that the application.getState() function caused this error since it shouldn't be installed on the target
+    if error != 'pyCom Error: Could not get information about application from target Controller['+ipAddress+']!':
+        raise RuntimeError("Error when installing test application, if it is still running, uninstall it!")
 
     # Determine current directory
     curDir = os.path.dirname(os.path.abspath(__file__))
@@ -65,10 +81,31 @@ def sviAppInstall(mh):
     mh.disconnect()
     time.sleep(20)
 
-    # Reconnect to the target
+def sviAppReset():
+
+    # Connect to controller
+    mh = m1com.M1Controller(ip=ipAddress)
     mh.connect(timeout=3000)
 
-def sviAppRemove(mh):
+    # Reset and restart the test application
+    application = m1com.M1Application('SVIWRITE', mh)
+
+    application.reset()
+    if(application.getState() != 'RES_S_EOI'):
+        raise RuntimeError("Error when resetting test application!")
+
+    application.start()
+    if(application.getState() != 'RES_S_RUN'):
+        raise RuntimeError("Error when resetting test application!")
+
+    # Disconnect from the controller
+    mh.disconnect()
+
+def sviAppRemove():
+
+    # Connect to controller
+    mh = m1com.M1Controller(ip=ipAddress)
+    mh.connect(timeout=3000)
 
     # Determine current directory
     curDir = os.path.dirname(os.path.abspath(__file__))
@@ -470,6 +507,83 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.getMaxCallSize')
 
+class Test_M1Application(unittest.TestCase):
+    def test_deinit(self):
+        if fastTest:
+            print('Requires reboot, skipped for faster testing')
+        else:
+            mh = m1com.M1Controller(ip=ipAddress)
+            mh.connect(timeout=3000)
+
+            application = m1com.M1Application('SVIWRITE', mh)
+            self.assertEqual(application.deinit(), None)
+            self.assertEqual(mh.reboot(), None)
+            self.assertEqual(mh.disconnect(), 0)
+            time.sleep(20)
+
+            testedMethods.append('M1Application.deinit')
+
+    def test_reset(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        swModule = m1com._M1SwModule('SVIWRITE', mh)
+        sviVariable = m1com._SVIVariable('SVIWRITE/boolVar', swModule)
+
+        self.assertEqual(sviVariable.read(), False)
+        self.assertEqual(sviVariable.write(True), None)
+        self.assertEqual(sviVariable.read(), True)
+
+        application = m1com.M1Application('SVIWRITE', mh)
+        self.assertEqual(application.reset(), None)
+        self.assertEqual(application.getState(), 'RES_S_EOI')
+        self.assertEqual(application.start(), None)
+        self.assertEqual(application.getState(), 'RES_S_RUN')
+
+        swModule = m1com._M1SwModule('SVIWRITE', mh)
+        sviVariable = m1com._SVIVariable('SVIWRITE/boolVar', swModule)
+
+        self.assertEqual(sviVariable.read(), False)
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Application.reset')
+
+    def test_stopstart(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        application = m1com.M1Application('SVIWRITE', mh)
+        self.assertEqual(application.getState(), 'RES_S_RUN')
+        self.assertEqual(application.stop(), None)
+        self.assertEqual(application.getState(), 'RES_S_STOP')
+        self.assertEqual(application.start(), None)
+        self.assertEqual(application.getState(), 'RES_S_RUN')
+
+        testedMethods.append('M1Application.stop')
+        testedMethods.append('M1Application.start')
+
+    def test_getInfo(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        application = m1com.M1Application('SVIWRITE', mh)
+        appInfo = application.getInfo()
+        self.assertEqual(type(appInfo), dict)
+        assertNotBytes(self, appInfo)
+
+        testedMethods.append('M1Application.getInfo')
+
+    def test_getState(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        application = m1com.M1Application('SVIWRITE', mh)
+        appState = application.getState()
+        self.assertEqual(type(appState), str)
+        self.assertEqual(appState, 'RES_S_RUN')
+
+        testedMethods.append('M1Application.getState')
+
 class Test_M1SVIObserver(unittest.TestCase):
     def test_detach(self):
         mh = m1com.M1Controller(ip=ipAddress)
@@ -559,90 +673,86 @@ class Test_M1SVIObserver(unittest.TestCase):
         self.assertEqual(sviObserver.detach(), None)
         self.assertEqual(mh.disconnect(), 0)
 
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
+        # Connect to the target
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        # Perform the read tests
+        readVariables = { 'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                          'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                          'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                          'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                          'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
+                          'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
+                          'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                          'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+        readValues = [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
+                      [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
+                      [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                      "OOO", "OOO"]
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            # Setup the observer
+            sviObserver = m1com.M1SVIObserver(list(readVariables.keys()), mh)
+            obtainedVariables = sviObserver.getVariables(updatedOnly=False)
+
+            j = 0
+            for key in readVariables:
+                sviValue = obtainedVariables[key]
+                if type(readValues[j]) == list:
+                    for i in range(len(readValues[j])):
+                        self.assertEqual(type(sviValue[i]), readVariables[key][0], msg='for ' + key + '=' + str(readValues[j][i]))
+                        if type(sviValue[i]) == float:
+                            self.assertAlmostEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
+                        else:
+                            self.assertEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
+                else:
+                    self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(readValues[j]))
+                    if type(sviValue) == float:
+                        self.assertAlmostEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
+                    else:
+                        self.assertEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
+                j = j + 1
+
+            # Setup the observer
+            sviObserver = m1com.M1SVIObserver(list(readVariables.keys()), mh)
+            obtainedVariables = sviObserver.getVariables(updatedOnly=True)
+
+            j = 0
+            for key in readVariables:
+                sviValue = obtainedVariables[key]
+                if type(readValues[j]) == list:
+                    for i in range(len(readValues[j])):
+                        self.assertEqual(type(sviValue[i]), readVariables[key][0], msg='for ' + key + '=' + str(readValues[j][i]))
+                        if type(sviValue[i]) == float:
+                            self.assertAlmostEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
+                        else:
+                            self.assertEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
+                else:
+                    self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(readValues[j]))
+                    if type(sviValue) == float:
+                        self.assertAlmostEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
+                    else:
+                        self.assertEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
+                j = j + 1
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
         else:
-
-            # Connect to the target
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            # Perform the read tests
-            readVariables = { 'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                              'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                              'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                              'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                              'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                              'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                              'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                              'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-            readValues = [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
-                          [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-                          [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                          "OOO", "OOO"]
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                # Setup the observer
-                sviObserver = m1com.M1SVIObserver(list(readVariables.keys()), mh)
-                obtainedVariables = sviObserver.getVariables(updatedOnly=False)
-
-                j = 0
-                for key in readVariables:
-                    sviValue = obtainedVariables[key]
-                    if type(readValues[j]) == list:
-                        for i in range(len(readValues[j])):
-                            self.assertEqual(type(sviValue[i]), readVariables[key][0], msg='for ' + key + '=' + str(readValues[j][i]))
-                            if type(sviValue[i]) == float:
-                                self.assertAlmostEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
-                            else:
-                                self.assertEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
-                    else:
-                        self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(readValues[j]))
-                        if type(sviValue) == float:
-                            self.assertAlmostEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
-                        else:
-                            self.assertEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
-                    j = j + 1
-
-                # Setup the observer
-                sviObserver = m1com.M1SVIObserver(list(readVariables.keys()), mh)
-                obtainedVariables = sviObserver.getVariables(updatedOnly=True)
-
-                j = 0
-                for key in readVariables:
-                    sviValue = obtainedVariables[key]
-                    if type(readValues[j]) == list:
-                        for i in range(len(readValues[j])):
-                            self.assertEqual(type(sviValue[i]), readVariables[key][0], msg='for ' + key + '=' + str(readValues[j][i]))
-                            if type(sviValue[i]) == float:
-                                self.assertAlmostEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
-                            else:
-                                self.assertEqual(sviValue[i], readValues[j][i], msg='for ' + key + '=' + str(readValues[j][i]))
-                    else:
-                        self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(readValues[j]))
-                        if type(sviValue) == float:
-                            self.assertAlmostEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
-                        else:
-                            self.assertEqual(sviValue, readValues[j], msg='for ' + key + '=' + str(readValues[j]))
-                    j = j + 1
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIObserver.getVariables')
+            testedMethods.append('M1SVIObserver.getVariables')
 
     def test_reset(self):
         mh = m1com.M1Controller(ip=ipAddress)
@@ -661,379 +771,223 @@ class Test_M1SVIObserver(unittest.TestCase):
 
 class Test_M1SVIReader(unittest.TestCase):
     def test_detach(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
 
-            # Install the svi test application
-            sviAppInstall(mh)
+        # Reset the svi test application
+        sviAppReset()
 
-            Error = False
-            ErrorMsg = ''
-            try:
-                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                    'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                    'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
-
-                self.assertNotEqual(sviReader._sviHandles, None)
-                self.assertEqual(sviReader.detach(), None)
-
-                self.assertEqual(sviReader._sviHandles, None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIReader.detach')
-
-    def test_getSVIHandles(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                    'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                    'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
-
-                self.assertNotEqual(sviReader.getSVIHandles(), None)
-                self.assertEqual(type(sviReader.getSVIHandles()), list)
-                self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
-                for sviHandle in sviReader.getSVIHandles():
-                    self.assertGreater(sviHandle, 0)
-                self.assertEqual(sviReader.detach(), None)
-                self.assertEqual(sviReader._sviHandles, None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIReader.getSVIHandles')
-
-    def test_attach(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                    'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                    'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
-
-                self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
-                self.assertNotEqual(sviReader.getSVIHandles(), None)
-                self.assertEqual(len(sviReader._sviHandles), len(list(readVariables.keys())))
-                for i in range(len(list(readVariables.keys()))):
-                    self.assertEqual(type(sviReader._sviHandles[i]), int)
-                self.assertEqual(len(sviReader._sviInfos), len(list(readVariables.keys())))
-                for i in range(len(list(readVariables.keys()))):
-                    self.assertEqual(str(type(sviReader._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
-                self.assertEqual(len(sviReader._sviValues), len(list(readVariables.keys())))
-                self.assertEqual(sviReader.detach(), None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIReader.attach')
-
-    def test_getVariables(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            # Connect to the target
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            # Perform the read tests
-            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
-                                'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
-                                'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
-                                'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+        Error = False
+        ErrorMsg = ''
+        try:
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
                                 'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
+                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
+                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
                                 'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
 
-            readValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
-                             [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
-                             [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
-                             "KLM", "KLM"],
-
-                            [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
-                             [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-                             [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                             "OOO", "OOO"] ]
-
-            # Setup the SVI writer and reader
-            sviWriter = m1com.M1SVIWriter(list(readVariables.keys()), mh)
+            # Setup the observer
             sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
 
-            Error = False
-            ErrorMsg = ''
-            try:
-                for i in range(len(readValues)):
+            self.assertNotEqual(sviReader._sviHandles, None)
+            self.assertEqual(sviReader.detach(), None)
 
-                    sviWriter.setVariables(readValues[i])
-                    obtainedVariables = sviReader.getVariables()
+            self.assertEqual(sviReader._sviHandles, None)
 
-                    j = 0
-                    for key in readVariables:
-                        sviValue = obtainedVariables[j]
-                        realValue = readValues[i][j]
-                        if type(realValue) == list:
-                            for k in range(len(realValue)):
-                                self.assertEqual(type(sviValue[k]), readVariables[key][0], msg='for ' + key + '=' + str(realValue[k]))
-                                if type(sviValue[k]) == float:
-                                    self.assertAlmostEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
-                                else:
-                                    self.assertEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
-                        else:
-                            self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(realValue))
-                            if type(sviValue) == float:
-                                self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIReader.detach')
+
+    def test_getSVIHandles(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
+                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
+                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+            # Setup the observer
+            sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+            self.assertNotEqual(sviReader.getSVIHandles(), None)
+            self.assertEqual(type(sviReader.getSVIHandles()), list)
+            self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
+            for sviHandle in sviReader.getSVIHandles():
+                self.assertGreater(sviHandle, 0)
+            self.assertEqual(sviReader.detach(), None)
+            self.assertEqual(sviReader._sviHandles, None)
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIReader.getSVIHandles')
+
+    def test_attach(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
+                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
+                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+            # Setup the observer
+            sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+            self.assertEqual(sviReader.getSVIHandles(), sviReader._sviHandles)
+            self.assertNotEqual(sviReader.getSVIHandles(), None)
+            self.assertEqual(len(sviReader._sviHandles), len(list(readVariables.keys())))
+            for i in range(len(list(readVariables.keys()))):
+                self.assertEqual(type(sviReader._sviHandles[i]), int)
+            self.assertEqual(len(sviReader._sviInfos), len(list(readVariables.keys())))
+            for i in range(len(list(readVariables.keys()))):
+                self.assertEqual(str(type(sviReader._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
+            self.assertEqual(len(sviReader._sviValues), len(list(readVariables.keys())))
+            self.assertEqual(sviReader.detach(), None)
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIReader.attach')
+
+    def test_getVariables(self):
+        # Connect to the target
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        # Perform the read tests
+        readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+        readValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
+                         [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
+                         [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
+                         "KLM", "KLM"],
+
+                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
+                         [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
+                         [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         "OOO", "OOO"] ]
+
+        # Setup the SVI writer and reader
+        sviWriter = m1com.M1SVIWriter(list(readVariables.keys()), mh)
+        sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            for i in range(len(readValues)):
+
+                sviWriter.setVariables(readValues[i])
+                obtainedVariables = sviReader.getVariables()
+
+                j = 0
+                for key in readVariables:
+                    sviValue = obtainedVariables[j]
+                    realValue = readValues[i][j]
+                    if type(realValue) == list:
+                        for k in range(len(realValue)):
+                            self.assertEqual(type(sviValue[k]), readVariables[key][0], msg='for ' + key + '=' + str(realValue[k]))
+                            if type(sviValue[k]) == float:
+                                self.assertAlmostEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
                             else:
-                                self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                                self.assertEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
+                    else:
+                        self.assertEqual(type(sviValue), readVariables[key], msg='for ' + key + '=' + str(realValue))
+                        if type(sviValue) == float:
+                            self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                        else:
+                            self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
 
-                        j = j + 1
+                    j = j + 1
 
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
 
-            # Remove the svi test application
-            sviAppRemove(mh)
+        # Reset the svi test application
+        sviAppReset()
 
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIReader.getVariables')
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIReader.getVariables')
 
 class Test_M1SVIWriter(unittest.TestCase):
     def test_detach(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
 
-            # Install the svi test application
-            sviAppInstall(mh)
+        # Reset the svi test application
+        sviAppReset()
 
-            Error = False
-            ErrorMsg = ''
-            try:
-                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                    'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                    'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                    'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
-
-                self.assertNotEqual(sviWriter._sviHandles, None)
-                self.assertEqual(sviWriter.detach(), None)
-
-                self.assertEqual(sviWriter._sviHandles, None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIWriter.detach')
-
-    def test_getSVIHandles(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                    'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                    'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                    'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
-
-                self.assertNotEqual(sviWriter.getSVIHandles(), None)
-                self.assertEqual(type(sviWriter.getSVIHandles()), list)
-                self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
-                for sviHandle in sviWriter.getSVIHandles():
-                    self.assertGreater(sviHandle, 0)
-                self.assertEqual(sviWriter.detach(), None)
-                self.assertEqual(sviWriter._sviHandles, None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIWriter.getSVIHandles')
-
-    def test_attach(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                    'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                    'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                    'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                    'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                    'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                    'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                    'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                    'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
-
-                # Setup the observer
-                sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
-
-                self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
-                self.assertNotEqual(sviWriter.getSVIHandles(), None)
-                self.assertEqual(len(sviWriter._sviHandles), len(list(writeVariables.keys())))
-                for i in range(len(list(writeVariables.keys()))):
-                    self.assertEqual(type(sviWriter._sviHandles[i]), int)
-                self.assertEqual(len(sviWriter._sviInfos), len(list(writeVariables.keys())))
-                for i in range(len(list(writeVariables.keys()))):
-                    self.assertEqual(str(type(sviWriter._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
-                self.assertEqual(len(sviWriter._sviValues), len(list(writeVariables.keys())))
-                self.assertEqual(sviWriter.detach(), None)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIWriter.attach')
-
-    def test_setVariables(self):
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
-            # Connect to the target
-            mh = m1com.M1Controller(ip=ipAddress)
-            mh.connect(timeout=3000)
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            # Perform the read tests
-            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
-                                'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
-                                'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
-                                'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+        Error = False
+        ErrorMsg = ''
+        try:
+            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
                                 'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
                                 'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
                                 'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
@@ -1041,60 +995,192 @@ class Test_M1SVIWriter(unittest.TestCase):
                                 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
                                 'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
 
-            writeValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
-                             [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
-                             [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
-                             "KLM", "KLM"],
-
-                            [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
-                             [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-                             [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                             "OOO", "OOO"] ]
-
-            # Setup the writer and observer
+            # Setup the observer
             sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
-            sviObserver = m1com.M1SVIObserver(list(writeVariables.keys()), mh)
 
-            Error = False
-            ErrorMsg = ''
-            try:
-                for i in range(len(writeValues)):
+            self.assertNotEqual(sviWriter._sviHandles, None)
+            self.assertEqual(sviWriter.detach(), None)
 
-                    sviWriter.setVariables(writeValues[i])
-                    obtainedVariables = sviObserver.getVariables()
+            self.assertEqual(sviWriter._sviHandles, None)
 
-                    j = 0
-                    for key in writeVariables:
-                        sviValue = obtainedVariables[key]
-                        realValue = writeValues[i][j]
-                        if type(realValue) == list:
-                            for k in range(len(realValue)):
-                                self.assertEqual(type(sviValue[k]), writeVariables[key][0], msg='for ' + key + '=' + str(realValue[k]))
-                                if type(sviValue[k]) == float:
-                                    self.assertAlmostEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
-                                else:
-                                    self.assertEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
-                        else:
-                            self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(realValue))
-                            if type(sviValue) == float:
-                                self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIWriter.detach')
+
+    def test_getSVIHandles(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+            # Setup the observer
+            sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+
+            self.assertNotEqual(sviWriter.getSVIHandles(), None)
+            self.assertEqual(type(sviWriter.getSVIHandles()), list)
+            self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
+            for sviHandle in sviWriter.getSVIHandles():
+                self.assertGreater(sviHandle, 0)
+            self.assertEqual(sviWriter.detach(), None)
+            self.assertEqual(sviWriter._sviHandles, None)
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIWriter.getSVIHandles')
+
+    def test_attach(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
+                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
+                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+            # Setup the observer
+            sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+
+            self.assertEqual(sviWriter.getSVIHandles(), sviWriter._sviHandles)
+            self.assertNotEqual(sviWriter.getSVIHandles(), None)
+            self.assertEqual(len(sviWriter._sviHandles), len(list(writeVariables.keys())))
+            for i in range(len(list(writeVariables.keys()))):
+                self.assertEqual(type(sviWriter._sviHandles[i]), int)
+            self.assertEqual(len(sviWriter._sviInfos), len(list(writeVariables.keys())))
+            for i in range(len(list(writeVariables.keys()))):
+                self.assertEqual(str(type(sviWriter._sviInfos[i])), "<class 'm1com.VARIABLE_INFO'>")
+            self.assertEqual(len(sviWriter._sviValues), len(list(writeVariables.keys())))
+            self.assertEqual(sviWriter.detach(), None)
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIWriter.attach')
+
+    def test_setVariables(self):
+        # Connect to the target
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Reset the svi test application
+        sviAppReset()
+
+        # Perform the read tests
+        writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str}
+
+        writeValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
+                         [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
+                         [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
+                         "KLM", "KLM"],
+
+                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
+                         [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
+                         [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         "OOO", "OOO"] ]
+
+        # Setup the writer and observer
+        sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
+        sviObserver = m1com.M1SVIObserver(list(writeVariables.keys()), mh)
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            for i in range(len(writeValues)):
+
+                sviWriter.setVariables(writeValues[i])
+                obtainedVariables = sviObserver.getVariables()
+
+                j = 0
+                for key in writeVariables:
+                    sviValue = obtainedVariables[key]
+                    realValue = writeValues[i][j]
+                    if type(realValue) == list:
+                        for k in range(len(realValue)):
+                            self.assertEqual(type(sviValue[k]), writeVariables[key][0], msg='for ' + key + '=' + str(realValue[k]))
+                            if type(sviValue[k]) == float:
+                                self.assertAlmostEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
                             else:
-                                self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                                self.assertEqual(sviValue[k], realValue[k], msg='for ' + key + '=' + str(realValue[k]))
+                    else:
+                        self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(realValue))
+                        if type(sviValue) == float:
+                            self.assertAlmostEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
+                        else:
+                            self.assertEqual(sviValue, realValue, msg='for ' + key + '=' + str(realValue))
 
-                        j = j + 1
+                    j = j + 1
 
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
 
-            # Remove the svi test application
-            sviAppRemove(mh)
+        # Reset the svi test application
+        sviAppReset()
 
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('M1SVIWriter.setVariables')
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('M1SVIWriter.setVariables')
 
 class Test_M1TargetFinder(unittest.TestCase):
     def test_TargetBroadcastSmiPing(self):
@@ -1283,98 +1369,94 @@ class Test_SVIVariable(unittest.TestCase):
             error = str(error.value)
             self.assertEqual(error, 'pyCom Error: Svi Variable[RES/CPU/TempCelsius] is not writable!')
 
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
-        else:
+        # Reset the svi test application
+        sviAppReset()
 
-            # Install the svi test application
-            sviAppInstall(mh)
+        # Perform the write tests
+        swModule = m1com._M1SwModule('SVIWRITE', mh)
+        writeVariables = { 'boolVar': bool, 'bool8Var': bool, 'uInt8Var': int, 'sInt8Var': int,
+                           'uInt16Var': int, 'sInt16Var': int, 'uInt32Var': int, 'sInt32Var': int,
+                           'uInt64Var': int, 'sInt64Var': int, 'real32Var': float, 'real64Var': float,
+                           'char8Var': str, 'char16Var': str, 'stringVar': str,
+                           'boolArray': [bool], 'bool8Array': [bool], 'uInt8Array': [int], 'sInt8Array': [int],
+                           'uInt16Array': [int], 'sInt16Array': [int], 'uInt32Array': [int], 'sInt32Array': [int],
+                           'uInt64Array': [int], 'sInt64Array': [int], 'real32Array': [float], 'real64Array': [float],
+                           'char8Array': str, 'char16Array': str
+                           }
 
-            # Perform the write tests
-            swModule = m1com._M1SwModule('SVIWRITE', mh)
-            writeVariables = { 'boolVar': bool, 'bool8Var': bool, 'uInt8Var': int, 'sInt8Var': int,
-                               'uInt16Var': int, 'sInt16Var': int, 'uInt32Var': int, 'sInt32Var': int,
-                               'uInt64Var': int, 'sInt64Var': int, 'real32Var': float, 'real64Var': float,
-                               'char8Var': str, 'char16Var': str, 'stringVar': str,
-                               'boolArray': [bool], 'bool8Array': [bool], 'uInt8Array': [int], 'sInt8Array': [int],
-                               'uInt16Array': [int], 'sInt16Array': [int], 'uInt32Array': [int], 'sInt32Array': [int],
-                               'uInt64Array': [int], 'sInt64Array': [int], 'real32Array': [float], 'real64Array': [float],
-                               'char8Array': str, 'char16Array': str
-                               }
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                for key in writeVariables:
-                    sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
-                    sviVariable2 = m1com._SVIVariable('SVIWRITE/' + key, swModule)
-                    if writeVariables[key] == bool:
-                        value = [True, False]
-                    elif writeVariables[key] == int:
-                        value = [1, 0]
-                    elif writeVariables[key] == float:
-                        value = [1.1, 0.0]
-                    elif writeVariables[key] == str:
-                        value = ['L', 'O']
-                    elif writeVariables[key] == [bool]:
-                        value = [[True, True, True], [False, False, False]]
-                    elif writeVariables[key] == [int]:
-                        value = [[1, 2, 3], [0, 0, 0]]
-                    elif writeVariables[key] == [float]:
-                        value = [[1.1, 2.2, 3.3], [0.0, 0.0, 0.0]]
-                    else:
-                        value = None
-                        print('Unsupported type: ' + str(writeVariables[key]) + ' for ' + str(key))
-                    sviVariable.write(value[0])
-                    sviValue = sviVariable.read()
-                    sviValue2 = sviVariable2.read()
-                    if type(sviValue) == list:
-                        for i in range(len(sviValue)):
-                            self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
-                            self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
-                            if type(sviValue[i]) == float:
-                                self.assertAlmostEqual(sviValue[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
-                                self.assertAlmostEqual(sviValue2[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
-                            else:
-                                self.assertEqual(sviValue[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
-                                self.assertEqual(sviValue2[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
-                    else:
-                        self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
-                        self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
-                        if type(sviValue) == float:
-                            self.assertAlmostEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
-                            self.assertAlmostEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
+        Error = False
+        ErrorMsg = ''
+        try:
+            for key in writeVariables:
+                sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+                sviVariable2 = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+                if writeVariables[key] == bool:
+                    value = [True, False]
+                elif writeVariables[key] == int:
+                    value = [1, 0]
+                elif writeVariables[key] == float:
+                    value = [1.1, 0.0]
+                elif writeVariables[key] == str:
+                    value = ['L', 'O']
+                elif writeVariables[key] == [bool]:
+                    value = [[True, True, True], [False, False, False]]
+                elif writeVariables[key] == [int]:
+                    value = [[1, 2, 3], [0, 0, 0]]
+                elif writeVariables[key] == [float]:
+                    value = [[1.1, 2.2, 3.3], [0.0, 0.0, 0.0]]
+                else:
+                    value = None
+                    print('Unsupported type: ' + str(writeVariables[key]) + ' for ' + str(key))
+                sviVariable.write(value[0])
+                sviValue = sviVariable.read()
+                sviValue2 = sviVariable2.read()
+                if type(sviValue) == list:
+                    for i in range(len(sviValue)):
+                        self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
+                        self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
+                        if type(sviValue[i]) == float:
+                            self.assertAlmostEqual(sviValue[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
+                            self.assertAlmostEqual(sviValue2[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
                         else:
-                            self.assertEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
-                            self.assertEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
-
-                    sviVariable.write(value[1])
-                    sviValue = sviVariable.read()
-                    sviValue2 = sviVariable2.read()
-                    if type(sviValue) == list:
-                        for i in range(len(sviValue)):
-                            self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
-                            self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
-                            self.assertEqual(sviValue[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
-                            self.assertEqual(sviValue2[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
+                            self.assertEqual(sviValue[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
+                            self.assertEqual(sviValue2[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
+                else:
+                    self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
+                    self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[0]))
+                    if type(sviValue) == float:
+                        self.assertAlmostEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
+                        self.assertAlmostEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
                     else:
-                        self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
-                        self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
-                        self.assertEqual(sviValue, value[1], msg='for ' + key + '=' + str(value[1]))
-                        self.assertEqual(sviValue2, value[1], msg='for ' + key + '=' + str(value[1]))
+                        self.assertEqual(sviValue, value[0], msg='for ' + key + '=' + str(value[0]))
+                        self.assertEqual(sviValue2, value[0], msg='for ' + key + '=' + str(value[0]))
 
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
+                sviVariable.write(value[1])
+                sviValue = sviVariable.read()
+                sviValue2 = sviVariable2.read()
+                if type(sviValue) == list:
+                    for i in range(len(sviValue)):
+                        self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
+                        self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
+                        self.assertEqual(sviValue[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
+                        self.assertEqual(sviValue2[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
+                else:
+                    self.assertEqual(type(sviValue), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(type(sviValue2), writeVariables[key], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(sviValue, value[1], msg='for ' + key + '=' + str(value[1]))
+                    self.assertEqual(sviValue2, value[1], msg='for ' + key + '=' + str(value[1]))
 
-            # Remove the svi test application
-            sviAppRemove(mh)
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
 
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('_SVIVariable.write')
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
+        else:
+            testedMethods.append('_SVIVariable.write')
 
     def test_getConnectionState(self):
         mh = m1com.M1Controller(ip=ipAddress)
@@ -1429,49 +1511,45 @@ class Test_SVIVariable(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        if fastTest:
-            print('Requires reboot, skipped for faster testing')
+        # Reset the svi test application
+        sviAppReset()
+
+        # Perform the write tests
+        swModule = m1com._M1SwModule('SVIWRITE', mh)
+        checkVariables = { 'boolVar': 'SVI_F_UINT1', 'bool8Var': 'SVI_F_BOOL8', 'uInt8Var': 'SVI_F_UINT8', 'sInt8Var': 'SVI_F_SINT8',
+                           'uInt16Var': 'SVI_F_UINT16', 'sInt16Var': 'SVI_F_SINT16', 'uInt32Var': 'SVI_F_UINT32', 'sInt32Var': 'SVI_F_SINT32',
+                           'uInt64Var': 'SVI_F_UINT64', 'sInt64Var': 'SVI_F_SINT64', 'real32Var': 'SVI_F_REAL32', 'real64Var': 'SVI_F_REAL64',
+                           'char8Var': 'SVI_F_CHAR8', 'char16Var': 'SVI_F_CHAR16', 'stringVar': 'SVI_F_CHAR8',
+                           'boolArray': 'SVI_F_UINT1', 'bool8Array': 'SVI_F_BOOL8', 'uInt8Array': 'SVI_F_UINT8', 'sInt8Array': 'SVI_F_SINT8',
+                           'uInt16Array': 'SVI_F_UINT16', 'sInt16Array': 'SVI_F_SINT16', 'uInt32Array': 'SVI_F_UINT32', 'sInt32Array': 'SVI_F_SINT32',
+                           'uInt64Array': 'SVI_F_UINT64', 'sInt64Array': 'SVI_F_SINT64', 'real32Array': 'SVI_F_REAL32', 'real64Array': 'SVI_F_REAL64',
+                           'char8Array': 'SVI_F_CHAR8', 'char16Array': 'SVI_F_CHAR16'
+                           }
+
+        Error = False
+        ErrorMsg = ''
+        try:
+            for key in checkVariables:
+                sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
+
+                obtainedDataType = sviVariable.getBaseDataType()
+                realDataType = checkVariables[key]
+
+                self.assertEqual(type(obtainedDataType), str)
+                self.assertEqual(obtainedDataType, realDataType)
+
+        except Exception as e:
+            ErrorMsg = e
+            Error = True
+            print(str(e))
+
+        # Reset the svi test application
+        sviAppReset()
+
+        if Error:
+            raise ErrorMsg
         else:
-
-            # Install the svi test application
-            sviAppInstall(mh)
-
-            # Perform the write tests
-            swModule = m1com._M1SwModule('SVIWRITE', mh)
-            checkVariables = { 'boolVar': 'SVI_F_UINT1', 'bool8Var': 'SVI_F_BOOL8', 'uInt8Var': 'SVI_F_UINT8', 'sInt8Var': 'SVI_F_SINT8',
-                               'uInt16Var': 'SVI_F_UINT16', 'sInt16Var': 'SVI_F_SINT16', 'uInt32Var': 'SVI_F_UINT32', 'sInt32Var': 'SVI_F_SINT32',
-                               'uInt64Var': 'SVI_F_UINT64', 'sInt64Var': 'SVI_F_SINT64', 'real32Var': 'SVI_F_REAL32', 'real64Var': 'SVI_F_REAL64',
-                               'char8Var': 'SVI_F_CHAR8', 'char16Var': 'SVI_F_CHAR16', 'stringVar': 'SVI_F_CHAR8',
-                               'boolArray': 'SVI_F_UINT1', 'bool8Array': 'SVI_F_BOOL8', 'uInt8Array': 'SVI_F_UINT8', 'sInt8Array': 'SVI_F_SINT8',
-                               'uInt16Array': 'SVI_F_UINT16', 'sInt16Array': 'SVI_F_SINT16', 'uInt32Array': 'SVI_F_UINT32', 'sInt32Array': 'SVI_F_SINT32',
-                               'uInt64Array': 'SVI_F_UINT64', 'sInt64Array': 'SVI_F_SINT64', 'real32Array': 'SVI_F_REAL32', 'real64Array': 'SVI_F_REAL64',
-                               'char8Array': 'SVI_F_CHAR8', 'char16Array': 'SVI_F_CHAR16'
-                               }
-
-            Error = False
-            ErrorMsg = ''
-            try:
-                for key in checkVariables:
-                    sviVariable = m1com._SVIVariable('SVIWRITE/' + key, swModule)
-
-                    obtainedDataType = sviVariable.getBaseDataType()
-                    realDataType = checkVariables[key]
-
-                    self.assertEqual(type(obtainedDataType), str)
-                    self.assertEqual(obtainedDataType, realDataType)
-
-            except Exception as e:
-                ErrorMsg = e
-                Error = True
-                print(str(e))
-
-            # Remove the svi test application
-            sviAppRemove(mh)
-
-            if Error:
-                raise ErrorMsg
-            else:
-                testedMethods.append('_SVIVariable.getBaseDataType')
+            testedMethods.append('_SVIVariable.getBaseDataType')
 
     def test_checkReadable(self):
         mh = m1com.M1Controller(ip=ipAddress)
@@ -1504,7 +1582,7 @@ class Test_SVIVariable(unittest.TestCase):
 if __name__ == "__main__":
     
     # Settings
-    ipAddress  = '169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    ipAddress  = '10.14.41.163'#'169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
     fastTest   = False                # Skip tests that require a reboot
     
     # List where name of tested methods will be saved
@@ -1524,8 +1602,14 @@ if __name__ == "__main__":
             if len(M1comClassMethods) != 0:
                 M1comClasses.update({Class:M1comClassMethods})
 
+    # Install the test application
+    sviAppInstall()
+
     # Perform the unit test
     unittest.main(verbosity=2, exit=False)
+
+    # Remove the test application
+    sviAppRemove()
 
     # Check if all methods in m1com where tested
     count = 0
