@@ -34,8 +34,7 @@ pip install baem200
 from baem200.m1com import PyCom, M1Controller
 from pprint import pprint
 
-dll = PyCom()
-mh = M1Controller(dll, 'your_M1_IP')
+mh = M1Controller('your_M1_IP')
 mh.connect()
 pprint(mh.getListofHwModules())
 mh.disconnect()
