@@ -1183,7 +1183,8 @@ class M1Controller:
             recv = RES_LOGIN2_R() 
             if(self._pycom.TARGET_GetLoginInfo(self._ctrlHandle, ctypes.pointer(recv)) != OK):
                 raise PyComException(("pyCom Error: Cannot get login info of Controller["+self._ip+"]"))
-        return recv
+
+        return ctypesInfo2dict(recv)
     
     def renewConnection(self):
         """
@@ -1294,6 +1295,7 @@ class M1Controller:
             raise PyComException(("pyCom Error: Can't get Software ModuleList from Controller["+self._ip+"]"))
         for num in range(0, countSwModules):
             py_modulelist[myModuleNames.ARRAY[num].name.decode('utf-8')] = _M1SwModule(myModuleNames.ARRAY[num].name.decode('utf-8'), self)
+
         return py_modulelist
 
     def getDrvId(self, CardNb):
@@ -1335,8 +1337,8 @@ class M1Controller:
          
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(130), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
-      
-        return recv
+
+        return ctypesInfo2dict(recv.Inf)
     
     def getCardInfoExt(self, CardNb):
         """
@@ -1353,14 +1355,7 @@ class M1Controller:
         if(self._pycom.MODULE_SendCall(mio, ctypes.c_uint(136), ctypes.c_uint(2), ctypes.pointer(send), ctypes.sizeof(send), ctypes.pointer(recv), ctypes.sizeof(recv), 3000) != OK):
             raise PyComException(("m1com Error: Can't send procedure number " + mio + " to Controller['"+self._ip+"']"))
 
-        cardInfoExt = {}
-        for name in recv.Inf._fields_:
-            if type(getattr(recv.Inf, name[0])) == bytes:
-                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0]).decode('utf-8')})
-            else:
-                cardInfoExt.update({name[0]:getattr(recv.Inf, name[0])})
-
-        return cardInfoExt.copy()
+        return ctypesInfo2dict(recv.Inf)
 
     def getListofHwModules(self):
         """
@@ -2521,7 +2516,9 @@ class M1TargetFinder:
                     for keyword in keywords:
                         if type(getattr(targetsInfo[dev].extPingR, keyword)) == bytes:
                             pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword).decode('utf-8')
-                        else:    
+                        elif hasattr(getattr(targetsInfo[dev].extPingR, keyword), '_type_'):
+                            pingInfo[keyword] = ctypesArray2list(getattr(targetsInfo[dev].extPingR, keyword))
+                        else:
                             pingInfo[keyword] = getattr(targetsInfo[dev].extPingR, keyword)
                     targetInfo['extPingR'] = pingInfo
                 else:
@@ -2546,7 +2543,9 @@ class M1TargetFinder:
         for keyword in keywords:
             if type(getattr(buffer, keyword)) == bytes:
                 pingInfo[keyword] = getattr(buffer, keyword).decode('utf-8')
-            else:    
+            elif hasattr(getattr(buffer, keyword), '_type_'):
+                pingInfo[keyword] = ctypesArray2list(getattr(buffer, keyword))
+            else:
                 pingInfo[keyword] = getattr(buffer, keyword)
         self._smitargetsInfo = pingInfo
 
@@ -2689,7 +2688,7 @@ class _SVIVariable:
         """
         if(self._varInfo == None):
             raise PyComException(("pyCom Error: Can't get Info from SviVariable["+self.name+"] of Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"]!"))
-        return self._varInfo
+        return ctypesInfo2dict(self._varInfo)
 
     def attach(self):
         """

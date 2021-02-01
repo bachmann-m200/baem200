@@ -250,10 +250,10 @@ class Test_M1Controller(unittest.TestCase):
 
         loginInfo = mh.getLoginInfo()
 
-        self.assertEqual(str(type(loginInfo)), "<class 'm1com.RES_LOGIN2_R'>")
+        self.assertEqual(type(loginInfo), dict)
         assertNotBytes(self, loginInfo)
-        self.assertGreaterEqual(loginInfo.SecurityLevel, 0)
-        self.assertLessEqual(loginInfo.SecurityLevel, 4)
+        self.assertGreaterEqual(loginInfo['SecurityLevel'], 0)
+        self.assertLessEqual(loginInfo['SecurityLevel'], 4)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getLoginInfo')
@@ -282,9 +282,11 @@ class Test_M1Controller(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        self.assertEqual(str(type(mh.getSwModuleByName('RES'))), "<class 'm1com._M1SwModule'>")
-        self.assertEqual(mh.getSwModuleByName('RES').name, 'RES')
-        assertNotBytes(self, mh.getSwModuleByName('RES'))
+        swModule = mh.getSwModuleByName('RES')
+
+        self.assertEqual(str(type(swModule)), "<class 'm1com._M1SwModule'>")
+        self.assertEqual(swModule.name, 'RES')
+        assertNotBytes(self, swModule)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getSwModuleByName')
@@ -293,9 +295,12 @@ class Test_M1Controller(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        self.assertEqual(str(type(mh.getListofSwModules())), "<class 'dict'>")
-        self.assertEqual(len(mh.getListofSwModules()), mh.getNumberofSwModules())
-        assertNotBytes(self, mh.getListofSwModules())
+        listSWmodules = mh.getListofSwModules()
+
+        self.assertEqual(type(listSWmodules), dict)
+        self.assertEqual(len(listSWmodules), mh.getNumberofSwModules())
+        assertNotBytes(self, listSWmodules)
+        self.assertEqual(str(type(listSWmodules['RES'])), "<class 'm1com._M1SwModule'>")
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getListofSwModules')
@@ -304,8 +309,10 @@ class Test_M1Controller(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        lastHwModuleNb = mh.getListofHwModules()[-1]['CardNb']
+        listHWModules = mh.getListofHwModules()
+        lastHwModuleNb = listHWModules[-1]['CardNb']
 
+        self.assertEqual(type(listHWModules), list)
         self.assertGreater(lastHwModuleNb, 0)
         assertNotBytes(self, mh.getListofHwModules())
         self.assertEqual(mh.disconnect(), 0)
@@ -329,10 +336,11 @@ class Test_M1Controller(unittest.TestCase):
         mh.connect(timeout=3000)
 
         lastHwModuleNb = mh.getListofHwModules()[-1]['CardNb']
+        cardInfo = mh.getCardInfo(lastHwModuleNb)
 
-        self.assertEqual(str(type(mh.getCardInfo(lastHwModuleNb))), "<class 'm1com.MIO_GETCDINF_R'>")
-        self.assertEqual(mh.getCardInfo(lastHwModuleNb).Inf.CardNb, lastHwModuleNb)
-        assertNotBytes(self, mh.getCardInfo(lastHwModuleNb))
+        self.assertEqual(type(cardInfo), dict)
+        self.assertEqual(cardInfo['CardNb'], lastHwModuleNb)
+        assertNotBytes(self, cardInfo)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getCardInfo')
@@ -1189,6 +1197,7 @@ class Test_M1TargetFinder(unittest.TestCase):
         
         # Check if broadcastSmiPing returns something
         self.assertNotEqual(broadcastSmiPing, None)
+        self.assertEqual(type(broadcastSmiPing), dict)
 
         # Check if broadcastSmiPing also finds the ip we are using
         ipFound = ''
@@ -1207,6 +1216,7 @@ class Test_M1TargetFinder(unittest.TestCase):
         
         # Check if smiPing returns something
         self.assertNotEqual(smiPing, None)
+        self.assertEqual(type(smiPing), dict)
         assertNotBytes(self, smiPing)
 
         testedMethods.append('M1TargetFinder.TargetSmiPing')
@@ -1270,6 +1280,7 @@ class Test_M1SwModule(unittest.TestCase):
 
         self.assertEqual(type(listOfSviVariables), dict)
         assertNotBytes(self, listOfSviVariables)
+        self.assertEqual(str(type(listOfSviVariables['RES/Time_s'])), "<class 'm1com._SVIVariable'>")
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('_M1SwModule.getListofSviVariables')
@@ -1322,8 +1333,10 @@ class Test_SVIVariable(unittest.TestCase):
         sviVariable = m1com._SVIVariable('RES/CPU/TempCelsius', swModule)
         sviInfo = sviVariable.getVarInfo()
 
-        self.assertEqual(sviInfo, sviVariable._varInfo)
+        self.assertEqual(sviInfo, m1com.ctypesInfo2dict(sviVariable._varInfo))
+        self.assertEqual(type(sviInfo), dict)
         self.assertNotEqual(sviInfo, None)
+        self.assertEqual(sviInfo['name'], 'RES/CPU/TempCelsius')
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('_SVIVariable.getVarInfo')
@@ -1582,7 +1595,7 @@ class Test_SVIVariable(unittest.TestCase):
 if __name__ == "__main__":
     
     # Settings
-    ipAddress  = '10.14.41.163'#'169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    ipAddress  = '169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
     fastTest   = False                # Skip tests that require a reboot
     
     # List where name of tested methods will be saved
