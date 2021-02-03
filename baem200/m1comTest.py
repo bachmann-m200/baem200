@@ -515,6 +515,24 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.getMaxCallSize')
 
+    def test_getErrorInfo(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        errorCodes = [  m1com.M1C_E_MEM_ALLOC, m1com.M1C_E_INVALID_PARTNER, m1com.M1C_E_WSA_INIT, m1com.M1C_E_ENET_DOWN,
+                        m1com.M1C_E_ADDRESS_SUPPORT, m1com.M1C_E_SOCKET_PROGRESS, m1com.M1C_E_NOMORE_SOCKETS, m1com.M1C_E_PROTOCOL,
+                        m1com.M1C_E_SOCKET, m1com.M1C_E_SOCKET_ACCESS ]
+
+        for errorCode in errorCodes:
+            ret = mh.getErrorInfo(errorCode)
+            self.assertEqual(type(ret), dict)
+            self.assertNotEqual(ret['errorSrc'], '')
+            self.assertNotEqual(ret['errorMsg'], '')
+
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.getErrorInfo')
+
 class Test_M1Application(unittest.TestCase):
     def test_deinit(self):
         if fastTest:

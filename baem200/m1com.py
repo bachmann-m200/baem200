@@ -96,6 +96,49 @@ RES_S_RESET          = 7
 RES_S_WARNING        = 8
 RES_S_ERROR_SMART    = 9
 
+# Possible errorcodes:
+M1C_BASE				= 0x81100000      # indicates that m1com is error source for other error sources refer to msys.h
+M1C_OK                  = 0               # everything is fine
+M1C_E_MEM_ALLOC         = (M1C_BASE|0x01) # not enough memory
+M1C_E_INVALID_PARTNER   = (M1C_BASE|0x02) # network connection closed by partner
+M1C_E_WSA_INIT          = (M1C_BASE|0x03) # WINSOCK could not be initialized
+M1C_E_ENET_DOWN         = (M1C_BASE|0x04) # Network is down
+M1C_E_ADDRESS_SUPPORT   = (M1C_BASE|0x05) # address family not supported by protocol family
+M1C_E_SOCKET_PROGRESS   = (M1C_BASE|0x06) # operation now in progress
+M1C_E_NOMORE_SOCKETS    = (M1C_BASE|0x07) # no more sockets
+M1C_E_PROTOCOL          = (M1C_BASE|0x08) # wrong protocol type for socket
+M1C_E_SOCKET            = (M1C_BASE|0x09) # socket error
+M1C_E_SOCKET_ACCESS     = (M1C_BASE|0x0A) # invalid socket access
+M1C_E_INVALID_IPA       = (M1C_BASE|0x0B) # bad address
+M1C_E_SOCKET_CONN       = (M1C_BASE|0x0C) # socket connect error
+M1C_E_INVALID_SOCKET    = (M1C_BASE|0x0D) # invalid socket
+M1C_E_RECEIVE_SIZE      = (M1C_BASE|0x0E) # message too long
+M1C_E_SOCKET_INUSE      = (M1C_BASE|0x0F) # socket already in use
+M1C_E_TIME_OUT          = (M1C_BASE|0x10) # connection timed out
+M1C_E_WINSOCKET         = (M1C_BASE|0x11) # WINSOCK error
+M1C_E_RPCCALL_STATE     = (M1C_BASE|0x13) # invalid XiD
+M1C_E_PROG_MISMATCH     = (M1C_BASE|0x14) # module with that number not found on controller
+M1C_E_PROC_UNAVAIL      = (M1C_BASE|0x15) # SMI function not supported by module
+M1C_E_INV_RESPONSE      = (M1C_BASE|0x16) # invalid response
+M1C_E_AUTH_ERROR        = (M1C_BASE|0x17) # authentication failed
+M1C_E_NO_CONN	        = (M1C_BASE|0x18) # no connection established
+M1C_E_QSOAP_FRAME       = (M1C_BASE|0x19) # invalid QSOAP frame
+M1C_E_NEG_RESP	        = (M1C_BASE|0x1A) # SMI: negative response
+M1C_E_SSL               = (M1C_BASE|0x1B) # SSL error
+M1C_E_INVALID_PARAMETER	= (M1C_BASE|0x1C) # invalid parameter
+M1C_E_INVALID_HANDLE	= (M1C_BASE|0x1E) # invalid handle
+M1C_E_NOT_INITIALIZED   = (M1C_BASE|0x1F) # not initialized
+M1C_E_NO_VAR            = (M1C_BASE|0x20) # variable not found
+M1C_E_LOCAL_FILE_ERROR  = (M1C_BASE|0x22) # error accessing the local file
+M1C_E_HTTP_ERROR        = (M1C_BASE|0x23) # HTTP error
+M1C_E_NO_PERMISSON      = (M1C_BASE|0x24) # access denied
+M1C_E_UNKNOWN_HOST      = (M1C_BASE|0x25) # host not found
+M1C_E_REMOTE_FILE_ERROR = (M1C_BASE|0x26) # error accessing the remote file
+M1C_E_UNSPECIFIED_ERROR = (M1C_BASE|0x27) # unspecified
+M1C_E_NO_LIST           = (M1C_BASE|0x28) # no observation list
+M1C_E_INVALID_STATE     = (M1C_BASE|0x29) # operation not allowed in the current state
+M1C_E_WRONG_MSYS        = (M1C_BASE|0x30) # function not supported by used MSYS
+
 # Protocol types:
 PROTOCOL_TCP         = 0
 PROTOCOL_QSOAP       = 1
@@ -652,13 +695,15 @@ class PyCom:
         currentVersion = self.getDllVersion()
         if(currentVersion != latestVersion):
             raise PyComException("pyCom Error: Wrong Dll Version expected Version: " + str(latestVersion) + " version is: " + str(currentVersion))
-        
-        #UnitTested: no
-        #TODO:
+
+        #VOID GetErrorSrc(SINT32 errorCode, CHAR * errorSrc, UINT32 errorSrcLen);
+        self.GetErrorSrc = m1Dll.GetErrorSrc
+        self.GetErrorSrc.argtypes = [ctypes.c_long, ctypes.c_char_p, ctypes.c_uint]
+
         #M1COM VOID GetErrorMsg(SINT32 errorCode, CHAR * errorMsg, UINT32 errorMsgLen);
         self.GetErrorMsg = m1Dll.GetErrorMsg
         self.GetErrorMsg.argtypes = [ctypes.c_long, ctypes.c_char_p, ctypes.c_uint]
-        
+
         #Protocol types:
         #PROTOCOL_TCP   = 0
         #PROTOCOL_QSOAP = 1    
@@ -670,334 +715,235 @@ class PyCom:
         self.TARGET_Create = m1Dll.TARGET_Create
         self.TARGET_Create.argtypes = [ctypes.c_char_p, ctypes.c_long, ctypes.c_uint]
         self.TARGET_Create.restype  = ctypes.c_void_p
-        
-        #UnitTested: no
-        #TODO:
+
         #VOID TARGET_Dispose(M1C_H_TARGET targetHandle);
         self.TARGET_Dispose = m1Dll.TARGET_Dispose
         self.TARGET_Dispose.argtypes = [ctypes.c_void_p]
-        
-        #UnitTested: no
-        #Connects a targetHandle
+
         #SINT32 TARGET_Connect(void* ctrl, char* username, char* password, char* clientname);
         self.TARGET_Connect = m1Dll.TARGET_Connect
         self.TARGET_Connect.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         self.TARGET_Connect.restype  = ctypes.c_long
 
-        #UnitTested: no
-        #Gets session live time.
         #SINT32 TARGET_GetSessionLiveTime(M1C_H_TARGET targetHandle, UINT32* sessionLiveTime);
         self.TARGET_GetSessionLiveTime = m1Dll.TARGET_GetSessionLiveTime
         self.TARGET_GetSessionLiveTime.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetSessionLiveTime.restype  = ctypes.c_long
 
-        #UnitTested: no
-        #Returns information about the current login session.
         #SINT32 TARGET_GetLoginInfo(M1C_H_TARGET targetHandle, RES_LOGIN2_R * resLogin2Reply);
         self.TARGET_GetLoginInfo = m1Dll.TARGET_GetLoginInfo
         self.TARGET_GetLoginInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(RES_LOGIN2_R)]
         self.TARGET_GetLoginInfo.restype  = ctypes.c_long
 
-        #UnitTested: no
-        #Renews the connection to the target.
         #SINT32 TARGET_RenewConnection(M1C_H_TARGET targetHandle);
         self.TARGET_RenewConnection = m1Dll.TARGET_RenewConnection
         self.TARGET_RenewConnection.argtypes = [ctypes.c_void_p]
         self.TARGET_RenewConnection.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 TARGET_Close(M1C_H_TARGET targetHandle);
         self.TARGET_Close = m1Dll.TARGET_Close
         self.TARGET_Close.argtypes = [ctypes.c_void_p]
         self.TARGET_Close.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #Read number of the installed modules on ctrl.
+
         #SINT32 TARGET_GetCountModules(void* targetHandle, unsigned short* moduleCount);
         self.TARGET_GetCountModules = m1Dll.TARGET_GetCountModules
         self.TARGET_GetCountModules.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ushort)]
         self.TARGET_GetCountModules.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #Read module list from ctrl.
+
         #SINT32 TARGET_GetModules(M1C_H_TARGET targetHandle, const UINT16 moduleCount, MODULE_LIST* moduleList);
         self.TARGET_GetModules = m1Dll.TARGET_GetModules
         self.TARGET_GetModules.argtypes = [ctypes.c_void_p, ctypes.c_ushort, ctypes.POINTER(MODULE_LIST)]
         self.TARGET_GetModules.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #Create SwModuleHandler
+
         #M1C_H_MODULE TARGET_CreateModule(M1C_H_TARGET targetHandle, CHAR* name);
         self.TARGET_CreateModule = m1Dll.TARGET_CreateModule
         self.TARGET_CreateModule.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self.TARGET_CreateModule.restype  = ctypes.c_void_p
-        
-        #UnitTested: no
-        #Attach ModuleHandle to Controller
+
         #SINT32 MODULE_Connect(M1C_H_MODULE moduleHandle);
         self.MODULE_Connect = m1Dll.MODULE_Connect
         self.MODULE_Connect.argtypes = [ctypes.c_void_p]
         self.MODULE_Connect.restype = ctypes.c_long
-        
-        #UnitTested: no
-        #Count SVI Variables of a SwModule
+
         #SINT32 MODULE_GetCountVariables(M1C_H_MODULE moduleHandle, UINT32* varCount);
         self.MODULE_GetCountVariables = m1Dll.MODULE_GetCountVariables
         self.MODULE_GetCountVariables.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.MODULE_GetCountVariables.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #Reads a List of SVI Variables from a SwModule
+
         #SINT32 MODULE_GetVariables(M1C_H_MODULE moduleHandle, const UINT32 varCount, VARIABLE_INFO_LIST* varList);
         self.MODULE_GetVariables = m1Dll.MODULE_GetVariables
         self.MODULE_GetVariables.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(VARIABLE_INFO_LIST)]
         self.MODULE_GetVariables.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1C_H_VARIABLE TARGET_CreateVariable(M1C_H_TARGET targetHandle, CHAR* name);
         self.TARGET_CreateVariable = m1Dll.TARGET_CreateVariable
         self.TARGET_CreateVariable.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self.TARGET_CreateVariable.restype  = ctypes.c_void_p
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM VOID VARIABLE_Dispose(M1C_H_VARIABLE variable);
         self.VARIABLE_Dispose = m1Dll.VARIABLE_Dispose
         self.VARIABLE_Dispose.argtypes = [ctypes.c_void_p]
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 TARGET_InitVariables(M1C_H_TARGET targetHandle, M1C_H_VARIABLE* variables, UINT32 countVariables);
         self.TARGET_InitVariables = m1Dll.TARGET_InitVariables
         self.TARGET_InitVariables.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_InitVariables.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 VARIABLE_GetInfo(M1C_H_VARIABLE variable, VARIABLE_INFO* varInfo);
         self.VARIABLE_GetInfo = m1Dll.VARIABLE_GetInfo
         self.VARIABLE_GetInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_GetInfo.restype  = ctypes.c_long
 
-        #UnitTested: no
-        #TODO:VARIABLE_GetFullName
         #M1COM CHAR8* (M1C_H_VARIABLE variable);
         self.VARIABLE_GetFullName = m1Dll.VARIABLE_GetFullName
         self.VARIABLE_GetFullName.argtypes = [ctypes.c_void_p]
         self.VARIABLE_GetFullName.restype  = ctypes.c_char_p
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM UINT32 VARIABLE_GetBufferLen(VARIABLE_INFO* varInfo);
         self.VARIABLE_GetBufferLen = m1Dll.VARIABLE_GetBufferLen
         self.VARIABLE_GetBufferLen.argtypes = [ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_GetBufferLen.restype  = ctypes.c_uint
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM UINT32 VARIABLE_getArrayLen(VARIABLE_INFO* varInfo);
         self.VARIABLE_getArrayLen = m1Dll.VARIABLE_getArrayLen
         self.VARIABLE_getArrayLen.argtypes = [ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_getArrayLen.restype  = ctypes.c_uint
-        
-        #UnitTested: no
-        #TODO
+
         #SINT32 TARGET_ReadVariables(M1C_H_TARGET targetHandle, VARIABLE_BUFFER* variableBuffers, UINT32 countVariables);
         self.TARGET_ReadVariables = m1Dll.TARGET_ReadVariables
         self.TARGET_ReadVariables.argtypes = [ctypes.c_void_p, ctypes.POINTER(VARIABLE_BUFFER), ctypes.c_uint]
         self.TARGET_ReadVariables.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 TARGET_ReadVariable(M1C_H_TARGET targetHandle, M1C_H_VARIABLE variableHandle, VOID* buffer, UINT32 bufferSize);
         self.TARGET_ReadVariable = m1Dll.TARGET_ReadVariable
         self.TARGET_ReadVariable.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_ReadVariable.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 TARGET_WriteVariables(M1C_H_TARGET targetHandle, VARIABLE_BUFFER* variables, UINT32 countVariables);
         self.TARGET_WriteVariables = m1Dll.TARGET_WriteVariables
         self.TARGET_WriteVariables.argtypes = [ctypes.c_void_p, ctypes.POINTER(VARIABLE_BUFFER), ctypes.c_uint]
         self.TARGET_WriteVariables.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_WriteVariable(M1C_H_TARGET targetHandle, M1C_H_VARIABLE variableHandle, VOID* buffer, UINT32 bufferSize);
         self.TARGET_WriteVariable = m1Dll.TARGET_WriteVariable
         self.TARGET_WriteVariable.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_WriteVariable.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM BOOL8  VARIABLE_IsReadable(VARIABLE_INFO* varInfo);
         self.VARIABLE_IsReadable = m1Dll.VARIABLE_IsReadable
         self.VARIABLE_IsReadable.argtypes = [ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_IsReadable.restype  = ctypes.c_ubyte
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM BOOL8  VARIABLE_IsWritable(VARIABLE_INFO* varInfo);
         self.VARIABLE_IsWritable = m1Dll.VARIABLE_IsWritable
         self.VARIABLE_IsWritable.argtypes = [ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_IsWritable.restype  = ctypes.c_ubyte
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 VARIABLE_GetState(M1C_H_VARIABLE variable, M1C_CONNECTION_STATE* state);
         self.VARIABLE_GetState = m1Dll.VARIABLE_GetState
         self.VARIABLE_GetState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.VARIABLE_GetState.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM  M1C_H_OBSLIST TARGET_CreateObservationList(M1C_H_TARGET targetHandle, VARIABLE_BUFFER* variableBuffers, UINT32 countVariables);
         self.TARGET_CreateObservationList = m1Dll.TARGET_CreateObservationList
         self.TARGET_CreateObservationList.argtypes = [ctypes.c_void_p, ctypes.POINTER(VARIABLE_BUFFER), ctypes.c_uint]
         self.TARGET_CreateObservationList.restype  = ctypes.c_void_p
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM  SINT32 OBSLIST_Dispose(M1C_H_OBSLIST obsListHandle);
         self.OBSLIST_Dispose = m1Dll.OBSLIST_Dispose
         self.OBSLIST_Dispose.argtypes = [ctypes.c_void_p]
         self.OBSLIST_Dispose.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 OBSLIST_Update(M1C_H_OBSLIST obsListHandle, SINT32* indexList, UINT32 listSize);
         self.OBSLIST_Update = m1Dll.OBSLIST_Update
         self.OBSLIST_Update.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_long), ctypes.c_uint]
         self.OBSLIST_Update.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 OBSLIST_Reset(M1C_H_OBSLIST obsListHandle);
         self.OBSLIST_Reset = m1Dll.OBSLIST_Reset
         self.OBSLIST_Reset.argtypes = [ctypes.c_void_p]
         self.OBSLIST_Reset.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #SINT32 MODULE_Dispose(M1C_H_MODULE moduleHandle);
         self.MODULE_Dispose = m1Dll.MODULE_Dispose
         self.MODULE_Dispose.argtypes = [ctypes.c_void_p]
         self.MODULE_Dispose.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO: missing implementation of args!
-        #VOID GetErrorSrc(SINT32 errorCode, CHAR * errorSrc, UINT32 errorSrcLen);
-        self.GetErrorSrc = m1Dll.GetErrorSrc
-        
-        #UnitTested: no
-        #TODO:
+
         #UINT32 VARIABLE_getBaseDataType(VARIABLE_INFO* varInfo);
         self.VARIABLE_getBaseDataType = m1Dll.VARIABLE_getBaseDataType
         self.VARIABLE_getBaseDataType.argtypes = [ctypes.POINTER(VARIABLE_INFO)]
         self.VARIABLE_getBaseDataType.restype  = ctypes.c_uint
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_SmiPing(CHAR* addr, UINT32 timeout, M1C_PROTOCOL protocol, RES_EXTPING_R * extping_r );
         self.TARGET_SmiPing = m1Dll.TARGET_SmiPing
         self.TARGET_SmiPing.argtypes = [ctypes.c_char_p, ctypes.c_uint, ctypes.c_uint, ctypes.POINTER(RES_EXTPING_R)]
         self.TARGET_SmiPing.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_SetUintParam(M1C_H_TARGET targetHandle, M1C_UINT_PARAM_KEY key, UINT32 value);
         self.TARGET_SetUintParam = m1Dll.TARGET_SetUintParam
         self.TARGET_SetUintParam.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
         self.TARGET_SetUintParam.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_SetStringParam(M1C_H_TARGET targetHandle, M1C_STRING_PARAM_KEY key, CHAR* value, UINT32 valueLen);
         self.TARGET_SetStringParam = m1Dll.TARGET_SetStringParam
         self.TARGET_SetStringParam.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_char_p, ctypes.c_uint]
         self.TARGET_SetStringParam.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM UINT32 TARGET_GetUintParam(M1C_H_TARGET targetHandle, M1C_UINT_PARAM_KEY key);
         self.TARGET_GetUintParam = m1Dll.TARGET_GetUintParam
         self.TARGET_GetUintParam.argtypes = [ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_GetUintParam.restype  = ctypes.c_uint
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM CHAR*  TARGET_GetStringParam(M1C_H_TARGET targetHandle, M1C_STRING_PARAM_KEY key);
         self.TARGET_GetStringParam = m1Dll.TARGET_GetStringParam
         self.TARGET_GetStringParam.argtypes = [ctypes.c_void_p, ctypes.c_uint]
         self.TARGET_GetStringParam.restype  = ctypes.c_char_p
 
-        #UnitTested: no
-        #TODO:
         #M1COM SINT32 TARGET_GetMaxCallSize(M1C_H_TARGET targetHandle, UINT32* maxCallSize);
         self.TARGET_GetMaxCallSize = m1Dll.TARGET_GetMaxCallSize
         self.TARGET_GetMaxCallSize.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetMaxCallSize.restype  = ctypes.c_long
 
-        #UnitTested: no
-        #TODO:
         #M1COM SINT32 TARGET_SetSSLClientCertificateContext(M1C_H_TARGET targetHandle, PCERT_CONTEXT clientCertContext);
         self.TARGET_SetSSLClientCertificateContext = m1Dll.TARGET_SetSSLClientCertificateContext
         self.TARGET_SetSSLClientCertificateContext.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
         self.TARGET_SetSSLClientCertificateContext.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_GetConnectionState(M1C_H_TARGET targetHandle, M1C_CONNECTION_STATE* state);
         self.TARGET_GetConnectionState = m1Dll.TARGET_GetConnectionState
         self.TARGET_GetConnectionState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
         self.TARGET_GetConnectionState.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_GetTargetState(M1C_H_TARGET targetHandle, UINT16* appState, UINT16* rebootCount);
         self.TARGET_GetTargetState = m1Dll.TARGET_GetTargetState
         self.TARGET_GetTargetState.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ushort), ctypes.POINTER(ctypes.c_ushort)]
         self.TARGET_GetTargetState.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 MODULE_SendCall(M1C_H_MODULE moduleHandle, UINT32 proc, UINT32 version, const PVOID send, UINT16 sendSize, PVOID recv, UINT16 recvSize, UINT32 timeout);
         self.MODULE_SendCall = m1Dll.MODULE_SendCall
         self.MODULE_SendCall.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p, ctypes.c_ushort, ctypes.c_void_p, ctypes.c_ushort, ctypes.c_uint]
         self.MODULE_SendCall.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 TARGET_BroadcastSmiPing( UINT32 timeout, TARGET_INFO * targetInfos, UINT32 len );
         self.TARGET_BroadcastSmiPing = m1Dll.TARGET_BroadcastSmiPing
         self.TARGET_BroadcastSmiPing.argtypes = [ctypes.c_uint, ctypes.POINTER(TARGET_INFO), ctypes.c_uint]
         self.TARGET_BroadcastSmiPing.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 RFS_CopyToTarget(M1C_H_TARGET targetHandle, CHAR *remoteFileName, CHAR *localFileName); 
         self.RFS_CopyToTarget = m1Dll.RFS_CopyToTarget
         self.RFS_CopyToTarget.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         self.RFS_CopyToTarget.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 RFS_CopyFromTarget(M1C_H_TARGET targetHandle, CHAR *localFileName, CHAR *remoteFilename); 
         self.RFS_CopyFromTarget = m1Dll.RFS_CopyFromTarget
         self.RFS_CopyFromTarget.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         self.RFS_CopyFromTarget.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 RFS_CopyRemote(M1C_H_TARGET targetHandle, CHAR *destFile, CHAR *srcFile); 
         self.RFS_CopyRemote = m1Dll.RFS_CopyRemote
         self.RFS_CopyRemote.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         self.RFS_CopyRemote.restype  = ctypes.c_long
-        
-        #UnitTested: no
-        #TODO:
+
         #M1COM SINT32 RFS_Remove(M1C_H_TARGET targetHandle, CHAR *filename); 
         self.RFS_Remove = m1Dll.RFS_Remove
         self.RFS_Remove.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
@@ -1573,6 +1519,20 @@ class M1Controller:
             raise PyComException(("pyCom Error: Can't get max call size for controller["+self._ip+"]"))
 
         return size.value
+
+    def getErrorInfo(self, errorCode):
+        """
+        Gets the source and message information of an error. The argument 'errorCode' can be any m1com error code 
+        such as: m1com.M1C_E_MEM_ALLOC, m1com.M1C_E_INVALID_PARTNER, m1com.M1C_E_WSA_INIT, etc. or a not yet
+        defined error code number as integer value.
+        """
+        errorSrc = ctypes.create_string_buffer(200)
+        errorMsg = ctypes.create_string_buffer(200)
+
+        self._pycom.GetErrorSrc(ctypes.c_long(errorCode), errorSrc, ctypes.c_uint(errorSrc._length_))
+        self._pycom.GetErrorMsg(ctypes.c_long(errorCode), errorMsg, ctypes.c_uint(errorMsg._length_))
+
+        return {"errorSrc":errorSrc.value.decode('utf-8'), "errorMsg":errorMsg.value.decode('utf-8')}
 
 class M1Application:
     """
