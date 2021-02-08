@@ -326,6 +326,15 @@ class ULONGLONG_ARRAY(ctypes.Structure):
         self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.c_ulonglong))
         self.array_size = num_of_structs
 
+class UNICODE_ARRAY(ctypes.Structure):
+    _fields_ = [('array_size', ctypes.c_short),
+                ('ARRAY', ctypes.POINTER(ctypes.c_wchar))]
+
+    def __init__(self,num_of_structs):
+        elems = (ctypes.c_wchar * num_of_structs)()
+        self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.c_wchar))
+        self.array_size = num_of_structs
+
 class MODULE_NAME(ctypes.Structure):
     _fields_ = [("name", (ctypes.c_char * M_MODNAMELEN_A))]
 
@@ -436,6 +445,12 @@ class SMI_RESET_C(ctypes.Structure):
 class SMI_RESET_R(ctypes.Structure):
     _fields_ = [("RetCode", ctypes.c_int32)]
 
+class SMI_ENDOFINIT_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_ENDOFINIT_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
 class SMI_DEINIT_C(ctypes.Structure):
     _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
 
@@ -446,6 +461,12 @@ class SMI_STOP_C(ctypes.Structure):
     _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
 
 class SMI_STOP_R(ctypes.Structure):
+    _fields_ = [("RetCode", ctypes.c_int32)]
+
+class SMI_INIT_C(ctypes.Structure):
+    _fields_ = [("Name", (ctypes.c_char*M_MODNAMELEN_A))]
+
+class SMI_INIT_R(ctypes.Structure):
     _fields_ = [("RetCode", ctypes.c_int32)]
 
 class SMI_RUN_C(ctypes.Structure):
@@ -1404,7 +1425,8 @@ class M1Controller:
             recvSize,
             ctypes.c_uint(timeout))
         if(returnSendCall != OK):
-            raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']"))
+            errorMsg = self.getErrorInfo(returnSendCall)
+            raise PyComException(("pyCom Error: Can't send procedure number " + str(proc) + " to Controller['"+self._ip+"']: " + str(errorMsg)))
         return recv
 
     def setUintParam(self, key, value):
@@ -1590,7 +1612,18 @@ class M1Application:
         recv = SMI_RESET_R()
         self._m1ctrl.sendCall(self.applicationName, 6, send, recv)
         if recv.RetCode == SMI_E_OK:
-            pass
+            send = SMI_ENDOFINIT_C()
+            send.AppName = self.applicationName.encode('utf-8')
+            recv = SMI_ENDOFINIT_R()
+            self._m1ctrl.sendCall(self.applicationName, 14, send, recv)
+            if recv.RetCode == SMI_E_OK:
+                pass
+            elif recv.RetCode == SMI_E_NAME:
+                raise PyComException(("pyCom Error: Could not reset software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+            elif recv.RetCode == SMI_E_FAILED:
+                raise PyComException(("pyCom Error: Could not reset software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+            else:
+                raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for reset on target Controller["+self._m1ctrl._ip+"]!"))
         elif recv.RetCode == SMI_E_NAME:
             raise PyComException(("pyCom Error: Could not reset software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
         elif recv.RetCode == SMI_E_FAILED:
@@ -1615,12 +1648,33 @@ class M1Application:
         else:
             raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for stop on target Controller["+self._m1ctrl._ip+"]!"))
 
+    def init(self):
+        """
+        Initializes the application on the target.
+        """
+        send = SMI_INIT_C()
+        send.AppName = self.applicationName.encode('utf-8')
+        recv = SMI_INIT_R()
+        self._m1ctrl.sendCall(self.applicationName, 2, send, recv)
+        if recv.RetCode == SMI_E_OK:
+            pass
+        elif recv.RetCode == SMI_E_NAME:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], Function not possible, because the instance does not exist!"))
+        elif recv.RetCode == SMI_E_FAILED:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], The function could not be executed properly!"))
+        elif recv.RetCode == SMI_E_SUPPORT:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], Function not supported!"))
+        elif recv.RetCode == SMI_E_NOMEM:
+            raise PyComException(("pyCom Error: Could not restart software module on target Controller["+self._m1ctrl._ip+"], Not enough system memory!"))
+        else:
+            raise PyComException(("pyCom Error: Unknown return code '"+str(recv.RetCode)+"' for run on target Controller["+self._m1ctrl._ip+"]!"))
+
     def start(self):
         """
         Starts the stopped application on the target.
         """
         send = SMI_RUN_C()
-        send.AppName = self.applicationName.upper().encode('utf-8')
+        send.AppName = self.applicationName.encode('utf-8')
         recv = SMI_RUN_R()
         self._m1ctrl.sendCall(self.applicationName, 20, send, recv)
         if recv.RetCode == SMI_E_OK:
@@ -1764,7 +1818,7 @@ class M1SVIObserver:
             self._sviBuffers.ARRAY[i].varHandle = self._sviHandles[i]
             self._sviBuffers.ARRAY[i].bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._sviInfos[i]))
 
-            identifiyer = self._sviInfos[i].format & 0x0f
+            identifiyer = self.m1ctrl._pycom.VARIABLE_getBaseDataType(self._sviInfos[i])
             if not(self._sviInfos[i].format & SVI_F_OUT):
                 raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] is not readable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
@@ -1825,11 +1879,11 @@ class M1SVIObserver:
                 elif(identifiyer == SVI_F_REAL32):
                     self._sviValues.append(FLOAT_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([float])
-                elif(self._sviInfos[i].format & SVI_F_STRINGLSTBASE):
+                elif(identifiyer == SVI_F_STRINGLSTBASE):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
-                elif(self._sviInfos[i].format & SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                elif(identifiyer == SVI_F_USTRINGLSTBASE):
+                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -1909,7 +1963,7 @@ class M1SVIObserver:
         value = None
         if updatedOnly:
             for i in range(countChangedVariables):
-                if hasattr(self._sviValues[self._indicesChanged[i]], 'value') and self._sviTypes[self._indicesChanged[i]] != [str] and self._sviTypes[self._indicesChanged[i]] != ['ustr']:
+                if hasattr(self._sviValues[self._indicesChanged[i]], 'value') and self._sviTypes[self._indicesChanged[i]] != [str]:
                     value = self._sviValues[self._indicesChanged[i]].value
                 else:
                     value = self._sviValues[self._indicesChanged[i]]
@@ -1930,7 +1984,8 @@ class M1SVIObserver:
                     value = value.raw.decode('utf-8').split('\x00')
                     value = value[0:len(value)-1]
                 elif self._sviTypes[self._indicesChanged[i]] == ['ustr']:
-                    value = value.raw.split('\x00')
+                    value = [str(value.ARRAY[i]) for i in range(value.array_size)]
+                    value = ''.join(value).split('\x00')
                     value = value[0:len(value)-1]
                 else:
                     value = self._sviTypes[self._indicesChanged[i]](value)
@@ -1958,7 +2013,8 @@ class M1SVIObserver:
                     value = value.raw.decode('utf-8').split('\x00')
                     value = value[0:len(value)-1]
                 elif self._sviTypes[i] == ['ustr']:
-                    value = value.raw.split('\x00')
+                    value = [str(value.ARRAY[i]) for i in range(value.array_size)]
+                    value = ''.join(value).split('\x00')
                     value = value[0:len(value)-1]
                 else:
                     value = self._sviTypes[i](value)
@@ -2064,7 +2120,7 @@ class M1SVIReader:
             self._sviBuffers.ARRAY[i].varHandle = self._sviHandles[i]
             self._sviBuffers.ARRAY[i].bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._sviInfos[i]))
 
-            identifiyer = self._sviInfos[i].format & 0x0f
+            identifiyer = self.m1ctrl._pycom.VARIABLE_getBaseDataType(self._sviInfos[i])
             if not(self._sviInfos[i].format & SVI_F_OUT):
                 raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not readable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
@@ -2125,11 +2181,11 @@ class M1SVIReader:
                 elif(identifiyer == SVI_F_REAL32):
                     self._sviValues.append(FLOAT_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([float])
-                elif(self._sviInfos[i].format & SVI_F_STRINGLSTBASE):
+                elif(identifiyer == SVI_F_STRINGLSTBASE):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
-                elif(self._sviInfos[i].format & SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                elif(identifiyer == SVI_F_USTRINGLSTBASE):
+                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -2207,7 +2263,8 @@ class M1SVIReader:
                 value = value.raw.decode('utf-8').split('\x00')
                 sviValues.append(value[0:len(value)-1])
             elif self._sviTypes[i] == ['ustr']:
-                value = value.raw.split('\x00')
+                value = [str(value.ARRAY[i]) for i in range(value.array_size)]
+                value = ''.join(value).split('\x00')
                 sviValues.append(value[0:len(value)-1])
             else:
                 sviValues.append(self._sviTypes[i](value))
@@ -2302,7 +2359,7 @@ class M1SVIWriter:
             self._sviBuffers.ARRAY[i].varHandle = self._sviHandles[i]
             self._sviBuffers.ARRAY[i].bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(ctypes.pointer(self._sviInfos[i]))
 
-            identifiyer = self._sviInfos[i].format & 0x0f
+            identifiyer = self.m1ctrl._pycom.VARIABLE_getBaseDataType(self._sviInfos[i])
             if not(self._sviInfos[i].format & SVI_F_IN):
                 raise PyComException("pyCom Error: SVI Variable["+self.sviNames[i]+"] is not writable!")
             if(self._sviInfos[i].format & SVI_F_BLK):
@@ -2334,7 +2391,8 @@ class M1SVIWriter:
                         self._sviValues.append(ctypes.c_double())
                         self._sviTypes.append(float)
                 elif(identifiyer == SVI_F_MIXED):
-                    raise PyComTypeException("ByteAccess of SVI_F_MIXED not implemented!")
+                    self._sviValues.append(UBYTE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviTypes.append([int])
                 elif(identifiyer == SVI_F_UINT1):
                     self._sviValues.append(UBYTE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([bool])
@@ -2362,11 +2420,11 @@ class M1SVIWriter:
                 elif(identifiyer == SVI_F_REAL32):
                     self._sviValues.append(FLOAT_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([float])
-                elif(self._sviInfos[i].format & SVI_F_STRINGLSTBASE):
+                elif(identifiyer == SVI_F_STRINGLSTBASE):
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
-                elif(self._sviInfos[i].format & SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])))
+                elif(identifiyer == SVI_F_USTRINGLSTBASE):
+                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -2460,9 +2518,10 @@ class M1SVIWriter:
                     raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] expects type 'str' with a maximum length of "+str(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
             elif (self._sviTypes[i] == [str] or self._sviTypes[i] == ['ustr']):
                 bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])
+                arrayLen = self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])
                 if type(sviValues[i]) != list:
                     raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] expects type 'list' with type 'str' elements")
-                if ((bufferLen % len(sviValues[i])) != 0):
+                if ((arrayLen % len(sviValues[i])) != 0):
                     raise PyComException("pyCom Error: Svi Variable["+self.sviNames[i]+"] expects type 'list' with correct number of elements of type 'str'")
                 for j in range(len(sviValues[i])):
                     if type(sviValues[i][j]) != str:
@@ -2491,6 +2550,13 @@ class M1SVIWriter:
                 for j in range(len(sviValues[i])):
                     byteArray = byteArray + sviValues[i][j] + '\x00'
                 self._sviValues[i].raw = byteArray.encode('utf-8')
+            elif self._sviTypes[i] == ['ustr']:
+                bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])
+                byteArray = ''
+                for j in range(len(sviValues[i])):
+                    byteArray = byteArray + sviValues[i][j] + '\x00'
+                for j in range(len(byteArray)):
+                    self._sviValues[i].ARRAY[j] = byteArray[j]
             else:
                 self._sviValues[i].value = sviValues[i]
 
@@ -2732,7 +2798,7 @@ class _SVIVariable:
         
         value = None
         valueType = None
-        identifiyer = self._varInfo.format & 0x0f
+        identifiyer = self._m1ctrl._pycom.VARIABLE_getBaseDataType(self._varInfo)
         if not(self._varInfo.format & SVI_F_OUT):
             raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not readable!")
         if(self._varInfo.format & SVI_F_BLK):
@@ -2793,11 +2859,11 @@ class _SVIVariable:
             elif(identifiyer == SVI_F_REAL32):
                 value = FLOAT_ARRAY(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
                 valueType = [float]
-            elif(self._varInfo.format & SVI_F_STRINGLSTBASE):
+            elif(identifiyer == SVI_F_STRINGLSTBASE):
                 value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
                 valueType = [str]
-            elif(self._varInfo.format & SVI_F_USTRINGLSTBASE):
-                value = ctypes.create_unicode_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
+            elif(identifiyer == SVI_F_USTRINGLSTBASE):
+                value = UNICODE_ARRAY(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
                 valueType = ['ustr']
             else:
                 raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._varInfo.format)+" of Variable:"+self.name)
@@ -2848,7 +2914,7 @@ class _SVIVariable:
                 raise PyComException("pyCom Error: could not read SVI Variable:"+self.name)
         if hasattr(value, 'value') and valueType != [str] and valueType != ['ustr']:
             value = value.value
-            
+
         if type(value) == bytes:
             return str(value.decode('utf-8'))
         elif valueType == 'char8' or valueType == ['char8']:
@@ -2865,7 +2931,8 @@ class _SVIVariable:
             value = value.raw.decode('utf-8').split('\x00')
             return value[0:len(value)-1]
         elif valueType == ['ustr']:
-            value = value.raw.split('\x00')
+            value = [str(value.ARRAY[i]) for i in range(value.array_size)]
+            value = ''.join(value).split('\x00')
             return value[0:len(value)-1]
         else:
             return valueType(value)
@@ -2878,7 +2945,7 @@ class _SVIVariable:
             raise PyComException("pyCom Error: read SviVariable["+self.name+"] from Module["+self._module.name+"] on Controller["+self._m1ctrl._ip+"] it is not available!")
 
         value = None
-        identifiyer = self._varInfo.format & 0x0f
+        identifiyer = self._m1ctrl._pycom.VARIABLE_getBaseDataType(self._varInfo)
         if not(self._varInfo.format & SVI_F_IN):
             raise PyComException("pyCom Error: Svi Variable["+self.name+"] is not writable!")
         if(self._varInfo.format & SVI_F_BLK):
@@ -3035,11 +3102,12 @@ class _SVIVariable:
                     if type(data[i]) != float:
                         raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with type 'float' elements")
                     value.ARRAY[i] = data[i]
-            elif(self._varInfo.format & SVI_F_STRINGLSTBASE):
+            elif(identifiyer == SVI_F_STRINGLSTBASE):
                 bufferLen = self._m1ctrl._pycom.VARIABLE_GetBufferLen(self._varInfo)
+                arrayLen = self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo)
                 if type(data) != list:
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with type 'str' elements")
-                if ((bufferLen % len(data)) != 0):
+                if ((arrayLen % len(data)) != 0):
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with correct number of elements of type 'str'")
                 value = ctypes.create_string_buffer(bufferLen)
                 byteArray = ''
@@ -3050,13 +3118,14 @@ class _SVIVariable:
                         raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'str' or maximum length "+str(int(bufferLen/len(data))))
                     byteArray = byteArray + data[i] + '\x00'
                 value.raw = byteArray.encode('utf-8')
-            elif(self._varInfo.format & SVI_F_USTRINGLSTBASE):
+            elif(identifiyer == SVI_F_USTRINGLSTBASE):
                 bufferLen = self._m1ctrl._pycom.VARIABLE_GetBufferLen(self._varInfo)
+                arrayLen = self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo)
                 if type(data) != list:
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with type 'str' elements")
-                if ((bufferLen % len(data)) != 0):
+                if ((arrayLen % len(data)) != 0):
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with correct number of elements of type 'str'")
-                value = ctypes.create_unicode_buffer(bufferLen)
+                value = UNICODE_ARRAY(bufferLen)
                 byteArray = ''
                 for i in range(len(data)):
                     if type(data[i]) != str:
@@ -3064,7 +3133,8 @@ class _SVIVariable:
                     if int(bufferLen/len(data)) < len(data[i]):
                         raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'str' or maximum length "+str(int(bufferLen/len(data))))
                     byteArray = byteArray + data[i] + '\x00'
-                value.raw = byteArray
+                for i in range(len(byteArray)):
+                    value.ARRAY[i] = byteArray[i]
             else:
                 raise PyComException("pyCom Error: unknown SVIBLK Type! "+str(self._varInfo.format)+" of Variable:"+self.name)
         else:

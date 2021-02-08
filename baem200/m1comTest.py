@@ -47,7 +47,7 @@ def sviAppInstall():
 
     # Expects that the application.getState() function caused this error since it shouldn't be installed on the target
     if error != 'pyCom Error: Could not get information about application from target Controller['+ipAddress+']!':
-        raise RuntimeError("Error when installing test application, if it is still running, uninstall it!")
+        raise RuntimeError("Error when installing test applications, if they are still running, uninstall them!")
 
     # Determine current directory
     curDir = os.path.dirname(os.path.abspath(__file__))
@@ -67,11 +67,13 @@ def sviAppInstall():
     f.write("  DebugMode = 0x0\n")
     f.write("  Priority = 130\n")
     f.write("  ModuleIndex = 0\n")
-    f.write("  ModulePath = /cfc0/app/\n")
+    f.write("  ModulePath = app/\n")
     f.write("  ModuleName = sviwrite.m\n")
     f.write("(ControlTask)\n")
-    f.write("  CycleTime = 1000000\n")
+    f.write("  CycleTime = 1000.000000\n")
     f.write("  Priority = 90\n")
+    f.write("  WatchdogRatio = 0\n")
+    f.write("  TimeBase = Tick\n")
     f.close()
 
     # Remove old mconfig.ini from target, copy the new mconfig.ini and reboot
@@ -91,11 +93,8 @@ def sviAppReset():
     application = m1com.M1Application('SVIWRITE', mh)
 
     application.reset()
-    if(application.getState() != 'RES_S_EOI'):
-        raise RuntimeError("Error when resetting test application!")
-
-    application.start()
     if(application.getState() != 'RES_S_RUN'):
+        print(application.getState())
         raise RuntimeError("Error when resetting test application!")
 
     # Disconnect from the controller
@@ -544,6 +543,7 @@ class Test_M1Application(unittest.TestCase):
             application = m1com.M1Application('SVIWRITE', mh)
             self.assertEqual(application.getState(), 'RES_S_RUN')
             self.assertEqual(application.deinit(), None)
+            time.sleep(3)
 
             error = None
             try:
@@ -571,9 +571,8 @@ class Test_M1Application(unittest.TestCase):
         self.assertEqual(sviVariable.read(), True)
 
         application = m1com.M1Application('SVIWRITE', mh)
+
         self.assertEqual(application.reset(), None)
-        self.assertEqual(application.getState(), 'RES_S_EOI')
-        self.assertEqual(application.start(), None)
         self.assertEqual(application.getState(), 'RES_S_RUN')
 
         swModule = m1com._M1SwModule('SVIWRITE', mh)
@@ -716,19 +715,22 @@ class Test_M1SVIObserver(unittest.TestCase):
         sviAppReset()
 
         # Perform the read tests
-        readVariables = { 'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                          'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                          'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                          'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                          'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                          'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                          'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                          'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+        readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
-        readValues = [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
-                      [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
-                      [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                      "OOO", "OOO", ["OOO", "OOO", "OOO"]]
+        readValues =     [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "OOOO", "OOOO",
+                         [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
+                         [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         ["OOOO", "OOOO", "OOOO"], ["OOOO", "OOOO", "OOOO"], [0]*52]
 
         Error = False
         ErrorMsg = ''
@@ -816,14 +818,17 @@ class Test_M1SVIReader(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
@@ -856,14 +861,17 @@ class Test_M1SVIReader(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
@@ -899,14 +907,17 @@ class Test_M1SVIReader(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int], 'SVIWRITE/sInt8Array': [int],
-                                'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int], 'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int],
-                                'SVIWRITE/uInt64Array': [int], 'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            readVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviReader = m1com.M1SVIReader(list(readVariables.keys()), mh)
@@ -949,21 +960,22 @@ class Test_M1SVIReader(unittest.TestCase):
                             'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
                             'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
                             'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
                             'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
                             'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
                             'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
                             'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                            'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
-        readValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
+        readValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "A", "A", "ABCD", "ABCD",
                          [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
                          [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
-                         "KLM", "KLM", ["ABC", "DEF", "GHI"]],
+                         ["ABCD", "EFGH", "IJKL"], ["ABCD", "EFGH", "IJKL"], [255]*52],
 
-                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
+                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "OOOO", "OOOO",
                          [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
                          [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                         "OOO", "OOO", ["OOO", "OOO", "OOO"]] ]
+                         ["OOOO", "OOOO", "OOOO"], ["OOOO", "OOOO", "OOOO"], [0]*52] ]
 
         # Setup the SVI writer and reader
         sviWriter = m1com.M1SVIWriter(list(readVariables.keys()), mh)
@@ -1021,15 +1033,17 @@ class Test_M1SVIWriter(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            writeVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
@@ -1062,15 +1076,17 @@ class Test_M1SVIWriter(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            writeVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
@@ -1106,15 +1122,17 @@ class Test_M1SVIWriter(unittest.TestCase):
         Error = False
         ErrorMsg = ''
         try:
-            writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int, 'SVIWRITE/sInt8Var': int,
-                                'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int, 'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int,
-                                'SVIWRITE/uInt64Var': int, 'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
-                                'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
-                                'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
-                                'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
-                                'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
-                                'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                                'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+            writeVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+                            'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
+                            'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
+                            'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
+                            'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
+                            'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
+                            'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
+                            'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
+                            'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
             # Setup the observer
             sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
@@ -1152,26 +1170,27 @@ class Test_M1SVIWriter(unittest.TestCase):
         sviAppReset()
 
         # Perform the read tests
-        writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+        writeVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
                             'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
                             'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
                             'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
                             'SVIWRITE/char8Var': str, 'SVIWRITE/char16Var': str, 'SVIWRITE/stringVar': str,
+                            'SVIWRITE/ustringVar': str,
                             'SVIWRITE/boolArray': [bool], 'SVIWRITE/bool8Array': [bool], 'SVIWRITE/uInt8Array': [int],
                             'SVIWRITE/sInt8Array': [int], 'SVIWRITE/uInt16Array': [int], 'SVIWRITE/sInt16Array': [int],
                             'SVIWRITE/uInt32Array': [int], 'SVIWRITE/sInt32Array': [int], 'SVIWRITE/uInt64Array': [int],
                             'SVIWRITE/sInt64Array': [int], 'SVIWRITE/real32Array': [float], 'SVIWRITE/real64Array': [float],
-                            'SVIWRITE/char8Array': str, 'SVIWRITE/char16Array': str, 'SVIWRITE/stringArray': [str]}
+                            'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
-        writeValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "L", "L", "Hello World",
+        writeValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "A", "A", "ABCD", "ABCD",
                          [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
                          [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
-                         "KLM", "KLM", ["ABC", "DEF", "GHI"]],
+                         ["ABCD", "EFGH", "IJKL"], ["ABCD", "EFGH", "IJKL"], [255]*52],
 
-                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "O",
+                        [False, False, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, "O", "O", "OOOO", "OOOO",
                          [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
                          [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-                         "OOO", "OOO", ["OOO", "OOO", "OOO"]] ]
+                         ["OOOO", "OOOO", "OOOO"], ["OOOO", "OOOO", "OOOO"], [0]*52] ]
 
         # Setup the writer and observer
         sviWriter = m1com.M1SVIWriter(list(writeVariables.keys()), mh)
@@ -1423,15 +1442,17 @@ class Test_SVIVariable(unittest.TestCase):
 
         # Perform the write tests
         swModule = m1com._M1SwModule('SVIWRITE', mh)
-        writeVariables = { 'boolVar': bool, 'bool8Var': bool, 'uInt8Var': int, 'sInt8Var': int,
-                           'uInt16Var': int, 'sInt16Var': int, 'uInt32Var': int, 'sInt32Var': int,
-                           'uInt64Var': int, 'sInt64Var': int, 'real32Var': float, 'real64Var': float,
-                           'char8Var': str, 'char16Var': str, 'stringVar': str,
-                           'boolArray': [bool], 'bool8Array': [bool], 'uInt8Array': [int], 'sInt8Array': [int],
-                           'uInt16Array': [int], 'sInt16Array': [int], 'uInt32Array': [int], 'sInt32Array': [int],
-                           'uInt64Array': [int], 'sInt64Array': [int], 'real32Array': [float], 'real64Array': [float],
-                           'char8Array': str, 'char16Array': str, 'stringArray': [str]
-                           }
+        writeVariables = {  'boolVar': bool, 'bool8Var': bool, 'uInt8Var': int,
+                            'sInt8Var': int, 'uInt16Var': int, 'sInt16Var': int,
+                            'uInt32Var': int, 'sInt32Var': int, 'uInt64Var': int,
+                            'sInt64Var': int, 'real32Var': float, 'real64Var': float,
+                            'char8Var': str, 'char16Var': str, 'stringVar': str,
+                            'ustringVar': str,
+                            'boolArray': [bool], 'bool8Array': [bool], 'uInt8Array': [int],
+                            'sInt8Array': [int], 'uInt16Array': [int], 'sInt16Array': [int],
+                            'uInt32Array': [int], 'sInt32Array': [int], 'uInt64Array': [int],
+                            'sInt64Array': [int], 'real32Array': [float], 'real64Array': [float],
+                            'stringArray': [str], 'ustringArray': [str], 'mixedVar': ['mixed']}
 
         Error = False
         ErrorMsg = ''
@@ -1453,8 +1474,10 @@ class Test_SVIVariable(unittest.TestCase):
                     value = [[1, 2, 3], [0, 0, 0]]
                 elif writeVariables[key] == [float]:
                     value = [[1.1, 2.2, 3.3], [0.0, 0.0, 0.0]]
+                elif writeVariables[key] == ['mixed']:
+                    value = [[255]*52, [0]*52]
                 elif writeVariables[key] == [str]:
-                    value = [['ABC', 'DEF', 'GHI'], ['OOO', 'OOO', 'OOO']]
+                    value = [['ABCD', 'EFGH', 'IJKL'], ['OOOO', 'OOOO', 'OOOO']]
                 else:
                     value = None
                     print('Unsupported type: ' + str(writeVariables[key]) + ' for ' + str(key))
@@ -1463,8 +1486,12 @@ class Test_SVIVariable(unittest.TestCase):
                 sviValue2 = sviVariable2.read()
                 if type(sviValue) == list:
                     for i in range(len(sviValue)):
-                        self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
-                        self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
+                        if writeVariables[key][0] == 'mixed':
+                            self.assertEqual(type(sviValue[i]), int, msg='for ' + key + '=' + str(value[0][i]))
+                            self.assertEqual(type(sviValue2[i]), int, msg='for ' + key + '=' + str(value[0][i]))
+                        else:
+                            self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
+                            self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[0][i]))
                         if type(sviValue[i]) == float:
                             self.assertAlmostEqual(sviValue[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
                             self.assertAlmostEqual(sviValue2[i], value[0][i], msg='for ' + key + '=' + str(value[0][i]))
@@ -1486,8 +1513,12 @@ class Test_SVIVariable(unittest.TestCase):
                 sviValue2 = sviVariable2.read()
                 if type(sviValue) == list:
                     for i in range(len(sviValue)):
-                        self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
-                        self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
+                        if writeVariables[key][0] == 'mixed':
+                            self.assertEqual(type(sviValue[i]), int, msg='for ' + key + '=' + str(value[1][i]))
+                            self.assertEqual(type(sviValue2[i]), int, msg='for ' + key + '=' + str(value[1][i]))
+                        else:
+                            self.assertEqual(type(sviValue[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
+                            self.assertEqual(type(sviValue2[i]), writeVariables[key][0], msg='for ' + key + '=' + str(value[1][i]))
                         self.assertEqual(sviValue[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
                         self.assertEqual(sviValue2[i], value[1][i], msg='for ' + key + '=' + str(value[1][i]))
                 else:
@@ -1570,11 +1601,11 @@ class Test_SVIVariable(unittest.TestCase):
         checkVariables = { 'boolVar': 'SVI_F_UINT1', 'bool8Var': 'SVI_F_BOOL8', 'uInt8Var': 'SVI_F_UINT8', 'sInt8Var': 'SVI_F_SINT8',
                            'uInt16Var': 'SVI_F_UINT16', 'sInt16Var': 'SVI_F_SINT16', 'uInt32Var': 'SVI_F_UINT32', 'sInt32Var': 'SVI_F_SINT32',
                            'uInt64Var': 'SVI_F_UINT64', 'sInt64Var': 'SVI_F_SINT64', 'real32Var': 'SVI_F_REAL32', 'real64Var': 'SVI_F_REAL64',
-                           'char8Var': 'SVI_F_CHAR8', 'char16Var': 'SVI_F_CHAR16', 'stringVar': 'SVI_F_CHAR8',
+                           'char8Var': 'SVI_F_CHAR8', 'char16Var': 'SVI_F_CHAR16', 'stringVar': 'SVI_F_CHAR8', 'ustringVar': 'SVI_F_CHAR16',
                            'boolArray': 'SVI_F_UINT1', 'bool8Array': 'SVI_F_BOOL8', 'uInt8Array': 'SVI_F_UINT8', 'sInt8Array': 'SVI_F_SINT8',
                            'uInt16Array': 'SVI_F_UINT16', 'sInt16Array': 'SVI_F_SINT16', 'uInt32Array': 'SVI_F_UINT32', 'sInt32Array': 'SVI_F_SINT32',
                            'uInt64Array': 'SVI_F_UINT64', 'sInt64Array': 'SVI_F_SINT64', 'real32Array': 'SVI_F_REAL32', 'real64Array': 'SVI_F_REAL64',
-                           'char8Array': 'SVI_F_CHAR8', 'char16Array': 'SVI_F_CHAR16', 'stringArray': 'SVI_F_STRINGLSTBASE'
+                           'stringArray': 'SVI_F_STRINGLSTBASE', 'ustringArray': 'SVI_F_USTRINGLSTBASE', 'mixedVar': 'SVI_F_MIXED'
                            }
 
         Error = False
