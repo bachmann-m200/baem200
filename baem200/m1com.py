@@ -6,6 +6,7 @@
 import ctypes, os.path, shutil, sys
 from ctypes.test import ctypes
 from ctypes.test.test_pointers import ctype_types
+from ctypes import wintypes
 
 # Const:
 MIO_INFOLEN_A        = 200
