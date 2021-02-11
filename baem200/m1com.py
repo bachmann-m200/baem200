@@ -1057,6 +1057,13 @@ class M1Controller:
         self._username = username
         self._password = password
         self._ctrlHandle = None
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.disconnect()
     
     def getCtrlHandle(self):
         """
@@ -1758,6 +1765,12 @@ class M1SVIObserver:
         self._indicesChanged = None
         self._countVariables = len(sviNames)
         self.attach()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.detach()
     
     def detach(self):
         """
@@ -2061,6 +2074,12 @@ class M1SVIReader:
         self._countVariables = len(sviNames)
         self.attach()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.detach()
+
     def detach(self):
         """
         Disposes all SVI variables and resets the internal buffers.
@@ -2299,6 +2318,12 @@ class M1SVIWriter:
         self._sviTypes = None
         self._countVariables = len(sviNames)
         self.attach()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.detach()
 
     def detach(self):
         """
@@ -2654,6 +2679,12 @@ class _M1SwModule:
         self._modHandle = None
         self.attach()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.detach()
+
     def detach(self):
         """
         Performs cleanup of the software module.
@@ -2744,6 +2775,12 @@ class _SVIVariable:
         self._varInfo = None
         self._bufferLen = None
         self.attach()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.detach()
 
     def detach(self):
         """
