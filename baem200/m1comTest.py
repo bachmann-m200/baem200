@@ -226,7 +226,7 @@ class Test_M1Controller(unittest.TestCase):
         #self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL failed!")
         #self.assertEqual(mh.disconnect(), 0)
 
-        crtFile = 'C:/Users/COEK/Documents/XCA Database/coek.p12'
+        crtFile = 'Y:/Documents/xca/mc210/privKey.pvk'
         mh.connect(protocol='SSL', clientCert=crtFile, clientCertPassword='bachmann', timeout=3000)
         self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL and client certificate failed!")
         self.assertEqual(mh.disconnect(), 0)
@@ -509,7 +509,7 @@ class Test_M1Controller(unittest.TestCase):
         mh.connect(timeout=3000)
 
         self.assertEqual(type(mh.getMaxCallSize()), int)
-        self.assertEqual(mh.getMaxCallSize(), 8148)
+        self.assertEqual(mh.getMaxCallSize(), 16340)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getMaxCallSize')
@@ -1664,7 +1664,7 @@ class Test_SVIVariable(unittest.TestCase):
 if __name__ == "__main__":
     
     # Settings
-    ipAddress  = '10.14.41.163'#'169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    ipAddress  = '192.168.2.9'#'169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
     fastTest   = False                # Skip tests that require a reboot
     
     # List where name of tested methods will be saved
