@@ -509,11 +509,7 @@ class Test_M1Controller(unittest.TestCase):
         mh.connect(timeout=3000)
 
         self.assertEqual(type(mh.getMaxCallSize()), int)
-<<<<<<< HEAD
         self.assertIn(mh.getMaxCallSize(), [2004, 4052, 8148, 16340])
-=======
-        self.assertEqual(mh.getMaxCallSize(), 16340)
->>>>>>> 5ef3331db4be3f226efc85eee43beb4a80c185d9
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getMaxCallSize')
