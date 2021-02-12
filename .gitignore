@@ -5,4 +5,8 @@
 /build.bat
 /.pydevproject
 /.project
+.settings/
 __pycache__
+._README.md
+m1com.log
+log.prp

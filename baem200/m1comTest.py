@@ -226,7 +226,7 @@ class Test_M1Controller(unittest.TestCase):
         #self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL failed!")
         #self.assertEqual(mh.disconnect(), 0)
 
-        crtFile = 'C:/Users/COEK/Documents/XCA Database/coek.p12'
+        crtFile = 'Y:/Documents/xca/mc210/privKey.pvk'
         mh.connect(protocol='SSL', clientCert=crtFile, clientCertPassword='bachmann', timeout=3000)
         self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL and client certificate failed!")
         self.assertEqual(mh.disconnect(), 0)
@@ -509,7 +509,11 @@ class Test_M1Controller(unittest.TestCase):
         mh.connect(timeout=3000)
 
         self.assertEqual(type(mh.getMaxCallSize()), int)
+<<<<<<< HEAD
         self.assertIn(mh.getMaxCallSize(), [2004, 4052, 8148, 16340])
+=======
+        self.assertEqual(mh.getMaxCallSize(), 16340)
+>>>>>>> 5ef3331db4be3f226efc85eee43beb4a80c185d9
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getMaxCallSize')
