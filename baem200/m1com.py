@@ -648,6 +648,13 @@ class PyCom:
     """
     def __init__(self, dllpath = ""):
 
+        self.operatingSystem = sys.platform
+
+        supportedOperatingSystems = ['win32']
+
+        if self.operatingSystem not in supportedOperatingSystems:
+            raise PyComException("pyCom Error: opperating system '"+str(self.operatingSystem)+"' currently not supported! Please check 'https://github.com/bachmann-m200/baem200/issues/28' whether this platform is already mentioned, otherwise notify the developers.")
+
         if dllpath == "":
             
             # Select correct dll (32bit or 64bit)
@@ -712,11 +719,29 @@ class PyCom:
         self.M1C_GetVersion = m1Dll.M1C_GetVersion
         self.M1C_GetVersion.argtypes = [ctypes.c_char_p, ctypes.c_uint]
         
-        #only load config if version matches:
-        latestVersion = 'V1.14.99 Release'
+        #only load config if version is minimal:
+        minimumVersion = 'V1.11.99 Release'
         currentVersion = self.getDllVersion()
-        if(currentVersion != latestVersion):
-            raise PyComException("pyCom Error: Wrong Dll Version expected Version: " + str(latestVersion) + " version is: " + str(currentVersion))
+        minimumVersionList = [s for s in minimumVersion.split('.')]
+        currentVersionList = [s for s in currentVersion.split('.')]
+        minimumVersionList = [[s for s in subVers if s.isdigit()] for subVers in minimumVersionList]
+        currentVersionList = [[s for s in subVers if s.isdigit()] for subVers in currentVersionList]
+        minimumVersionList = [int(''.join(subVers)) for subVers in minimumVersionList]
+        currentVersionList = [int(''.join(subVers)) for subVers in currentVersionList]
+        if(currentVersionList[0] > minimumVersionList[0]):
+            pass
+        elif (currentVersionList[0] == minimumVersionList[0]):
+            if(currentVersionList[1] > minimumVersionList[1]):
+                pass
+            elif (currentVersionList[1] == minimumVersionList[1]):
+                if(currentVersionList[2] >= minimumVersionList[2]):
+                    pass
+                else:
+                    raise PyComException("pyCom Error: Wrong Dll Version expected at least Version: " + str(minimumVersion) + " version is: " + str(currentVersion))
+            else:
+                raise PyComException("pyCom Error: Wrong Dll Version expected at least Version: " + str(minimumVersion) + " version is: " + str(currentVersion))
+        else:
+            raise PyComException("pyCom Error: Wrong Dll Version expected at least Version: " + str(minimumVersion) + " version is: " + str(currentVersion))
 
         #VOID GetErrorSrc(SINT32 errorCode, CHAR * errorSrc, UINT32 errorSrcLen);
         self.GetErrorSrc = m1Dll.GetErrorSrc

@@ -509,7 +509,7 @@ class Test_M1Controller(unittest.TestCase):
         mh.connect(timeout=3000)
 
         self.assertEqual(type(mh.getMaxCallSize()), int)
-        self.assertEqual(mh.getMaxCallSize(), 16340)
+        self.assertIn(mh.getMaxCallSize(), [2004, 4052, 8148, 16340])
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getMaxCallSize')
@@ -1664,7 +1664,7 @@ class Test_SVIVariable(unittest.TestCase):
 if __name__ == "__main__":
     
     # Settings
-    ipAddress  = '192.168.2.9'#'169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    ipAddress  = '169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
     fastTest   = False                # Skip tests that require a reboot
     
     # List where name of tested methods will be saved
