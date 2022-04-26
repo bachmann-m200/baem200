@@ -1,10 +1,14 @@
 import unittest
 import sys
 import os
-import shutil 
+import shutil
+
 import m1com
 import ctypes
 import time
+import pandas as pd
+from datetime import datetime
+from numpy import datetime64, timedelta64
 
 def assertNotBytes(test, methodReturn):
 
@@ -81,7 +85,7 @@ def sviAppInstall():
     mh.copyToTarget(curDir + '/unittestFiles/mconfigSVIWrite.ini', '/cfc0/mconfig.ini')
     mh.reboot()
     mh.disconnect()
-    time.sleep(20)
+    time.sleep(30)
 
 def sviAppReset():
 
@@ -122,7 +126,7 @@ def sviAppRemove():
 class Test_PyComException(unittest.TestCase):
     def test_with_traceback(self):
         exception = m1com.PyComException('PyComException Test')
-        
+
         self.assertEqual(exception.value, 'PyComException Test')
         assertNotBytes(self, exception)
 
@@ -146,7 +150,7 @@ class Test_PyComException(unittest.TestCase):
 class Test_PyComTypeException(unittest.TestCase):
     def test_with_traceback(self):
         exception = m1com.PyComTypeException('PyComTypeException Test')
-        
+
         self.assertEqual(exception.value, 'PyComTypeException Test')
         assertNotBytes(self, exception)
 
@@ -226,7 +230,7 @@ class Test_M1Controller(unittest.TestCase):
         #self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL failed!")
         #self.assertEqual(mh.disconnect(), 0)
 
-        crtFile = 'Y:/Documents/xca/mc210/privKey.pvk'
+        crtFile = 'C:/Users/COEK/Documents/XCA Database/coek.p12'
         mh.connect(protocol='SSL', clientCert=crtFile, clientCertPassword='bachmann', timeout=3000)
         self.assertNotEqual(mh._ctrlHandle, None, msg="Connect with protocol SSL and client certificate failed!")
         self.assertEqual(mh.disconnect(), 0)
@@ -289,7 +293,7 @@ class Test_M1Controller(unittest.TestCase):
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getSwModuleByName')
-    
+
     def test_getListofSwModules(self):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
@@ -303,7 +307,7 @@ class Test_M1Controller(unittest.TestCase):
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getListofSwModules')
-    
+
     def test_getListofHwModules(self):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
@@ -317,7 +321,7 @@ class Test_M1Controller(unittest.TestCase):
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getListofHwModules')
-    
+
     def test_getDrvId(self):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
@@ -401,6 +405,25 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.remove')
 
+    def test_listDirectory(self):
+
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        dirContent = mh.listDirectory("/cfc0/")
+
+        foundMconfigIni = False
+        for item in dirContent:
+            if "mconfig" in dirContent:
+                foundMconfigIni = True
+
+        # Currently fails....
+        self.assertTrue(foundMconfigIni, msg="mconfig.ini not found using listDirectory function")
+
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.listDirectory')
+
     def test_resetAll(self):
         if fastTest:
             print('Requires reboot, skipped for faster testing')
@@ -473,7 +496,7 @@ class Test_M1Controller(unittest.TestCase):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
 
-        keys = ['M1C_PROXY_USED', 'M1C_PROXY_PORT', 'M1C_QSOAP_PORT', 'M1C_IGNORE_SERVER_CERT', 'M1C_COUNT_SOCKETS', 
+        keys = ['M1C_PROXY_USED', 'M1C_PROXY_PORT', 'M1C_QSOAP_PORT', 'M1C_IGNORE_SERVER_CERT', 'M1C_COUNT_SOCKETS',
                 'M1C_IGNORE_SERVER_CERT_CN', 'M1C_LOGIN2_USER_PARAM']
         for key in keys:
             original = mh.getUintParam(key)
@@ -531,6 +554,120 @@ class Test_M1Controller(unittest.TestCase):
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('M1Controller.getErrorInfo')
+
+    def test_setDateTime(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Read RES/Time/TimeLocal variable
+        swModule = m1com._M1SwModule('RES', mh)
+        sviTimeLocal = m1com._SVIVariable('RES/Time/TimeLocal', swModule)
+        timeLocalOld = sviTimeLocal.read()
+
+        # Remove location from timestamp
+        stringFormat = "YYYY-MM-DD HH:MM:SS"
+        stringFormatLen = len(stringFormat)
+        timeLocalOld = timeLocalOld[0:stringFormatLen]
+
+        # Convert to datetime string
+        timeLocalOld = pd.to_datetime(pd.Timestamp(timeLocalOld)).strftime('%Y-%m-%d_%H-%M-%S')
+
+        # Time to set
+        timeLocalSet = "2022-01-01_12-00-00"
+
+        # Set controller time
+        mh.setDateTime(timeLocalSet)
+
+        # Get new controller time
+        timeLocalNew = sviTimeLocal.read()
+
+        # Remove location from timestamp
+        timeLocalNew = timeLocalNew[0:stringFormatLen]
+
+        # Convert to datetime
+        timeLocalSet = datetime64(datetime.strptime(timeLocalSet, '%Y-%m-%d_%H-%M-%S'))
+        timeLocalNew = datetime64(pd.to_datetime(pd.Timestamp(timeLocalNew)))
+
+        # Check whether time is within a diff of 3 seconds
+        timeLocalDiff = timeLocalSet - timeLocalNew
+        self.assertLessEqual(timeLocalDiff, timedelta64(3, 's'))
+
+        # Set back to original time
+        mh.setDateTime(timeLocalOld)
+
+        # Get new controller time
+        timeLocalNew = sviTimeLocal.read()
+
+        # Remove location from timestamp
+        timeLocalNew = timeLocalNew[0:stringFormatLen]
+
+        # Convert to datetime
+        timeLocalOld = datetime64(datetime.strptime(timeLocalOld, '%Y-%m-%d_%H-%M-%S'))
+        timeLocalNew = datetime64(pd.to_datetime(pd.Timestamp(timeLocalNew)))
+
+        # Check whether time is within a diff of 3 seconds
+        timeLocalDiff = timeLocalOld - timeLocalNew
+        self.assertLessEqual(timeLocalDiff, timedelta64(3, 's'))
+
+        # Check whether disconnect was successful
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.setDateTime')
+
+    def test_syncDateTime(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Read RES/Time/TimeLocal variable
+        swModule = m1com._M1SwModule('RES', mh)
+        sviTimeLocal = m1com._SVIVariable('RES/Time/TimeLocal', swModule)
+
+        # Time to set
+        timeLocalSet = "2022-01-01_12-00-00"
+
+        # Set controller time
+        mh.setDateTime(timeLocalSet)
+
+        # Get new controller time
+        timeLocalNew = sviTimeLocal.read()
+
+        # Remove location from timestamp
+        stringFormat = "YYYY-MM-DD HH:MM:SS"
+        stringFormatLen = len(stringFormat)
+        timeLocalNew = timeLocalNew[0:stringFormatLen]
+
+        # Convert to datetime
+        timeLocalSet = datetime64(datetime.strptime(timeLocalSet, '%Y-%m-%d_%H-%M-%S'))
+        timeLocalNew = datetime64(pd.to_datetime(pd.Timestamp(timeLocalNew)))
+
+        # Check whether time is within a diff of 3 seconds
+        timeLocalDiff = timeLocalSet - timeLocalNew
+        self.assertLessEqual(timeLocalDiff, timedelta64(3, 's'))
+
+        # Sync with PC time
+        mh.syncDateTime()
+
+        # Get new controller time
+        timeLocalNew = sviTimeLocal.read()
+
+        # Get PC time
+        timeLocalPC = datetime.now()
+
+        # Remove location from timestamp
+        timeLocalNew = timeLocalNew[0:stringFormatLen]
+
+        # Convert to datetime
+        timeLocalPC = datetime64(timeLocalPC)
+        timeLocalNew = datetime64(pd.to_datetime(pd.Timestamp(timeLocalNew)))
+
+        # Check whether time is within a diff of 3 seconds
+        timeLocalDiff = timeLocalPC - timeLocalNew
+        self.assertLessEqual(timeLocalDiff, timedelta64(3, 's'))
+
+        # Check whether disconnect was successful
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.syncDateTime')
 
 class Test_M1Application(unittest.TestCase):
     def test_deinit(self):
@@ -1170,7 +1307,7 @@ class Test_M1SVIWriter(unittest.TestCase):
         sviAppReset()
 
         # Perform the read tests
-        writeVariables = {   'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
+        writeVariables = {  'SVIWRITE/boolVar': bool, 'SVIWRITE/bool8Var': bool, 'SVIWRITE/uInt8Var': int,
                             'SVIWRITE/sInt8Var': int, 'SVIWRITE/uInt16Var': int, 'SVIWRITE/sInt16Var': int,
                             'SVIWRITE/uInt32Var': int, 'SVIWRITE/sInt32Var': int, 'SVIWRITE/uInt64Var': int,
                             'SVIWRITE/sInt64Var': int, 'SVIWRITE/real32Var': float, 'SVIWRITE/real64Var': float,
@@ -1183,6 +1320,21 @@ class Test_M1SVIWriter(unittest.TestCase):
                             'SVIWRITE/stringArray': [str], 'SVIWRITE/ustringArray': [str], 'SVIWRITE/mixedVar': [int]}
 
         writeValues = [  [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "A", "A", "ABCD", "ABCD",
+                         [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
+                         [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
+                         ["ABCD", "EFGH", "IJKL"], ["ABCD", "EFGH", "IJKL"], [255]*52],
+
+                         [False,  False,  255,
+                          -128, 65535, -32768,
+                          4294967295, -2147483648, 18446744073709551615,
+                          -9223372036854775808, 0.0, 0.0,
+                          "O", "O", "OOOO",
+                          "OOOO",
+                         [False, False, False], [False, False, False], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],
+                         [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         ["OOOO", "OOOO", "OOOO"], ["OOOO", "OOOO", "OOOO"], [0]*52],
+
+                         [True,  True,  1, 1, 1, 1, 1, 1, 1, 1, 1.1, 1.1, "A", "A", "ABCD", "ABCD",
                          [True, True, True], [True, True, True], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3],
                          [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1.1, 2.2, 3.3], [1.1, 2.2, 3.3],
                          ["ABCD", "EFGH", "IJKL"], ["ABCD", "EFGH", "IJKL"], [255]*52],
@@ -1241,7 +1393,7 @@ class Test_M1TargetFinder(unittest.TestCase):
     def test_TargetBroadcastSmiPing(self):
         mt = m1com.M1TargetFinder()
         broadcastSmiPing = mt.TargetBroadcastSmiPing(timeout=3000)
-        
+
         # Check if broadcastSmiPing returns something
         self.assertNotEqual(broadcastSmiPing, None)
         self.assertEqual(type(broadcastSmiPing), dict)
@@ -1260,7 +1412,7 @@ class Test_M1TargetFinder(unittest.TestCase):
     def test_TargetSmiPing(self):
         mt = m1com.M1TargetFinder()
         smiPing = mt.TargetSmiPing(ip=ipAddress, timeout=3000)
-        
+
         # Check if smiPing returns something
         self.assertNotEqual(smiPing, None)
         self.assertEqual(type(smiPing), dict)
@@ -1419,7 +1571,7 @@ class Test_SVIVariable(unittest.TestCase):
 
         self.assertEqual(type(sviValue), list)
         self.assertEqual(min(sviValue), 0)
-        self.assertGreaterEqual(max(sviValue), 1)
+        self.assertGreaterEqual(max(sviValue), 0)
         self.assertEqual(mh.disconnect(), 0)
 
         testedMethods.append('_SVIVariable.read')
@@ -1662,11 +1814,11 @@ class Test_SVIVariable(unittest.TestCase):
         testedMethods.append('_SVIVariable.checkWritable')
 
 if __name__ == "__main__":
-    
+
     # Settings
-    ipAddress  = '169.254.141.136' #'10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
-    fastTest   = False                # Skip tests that require a reboot
-    
+    ipAddress  = '10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    fastTest   = True                # Skip tests that require a reboot
+
     # List where name of tested methods will be saved
     testedMethods = []
 
