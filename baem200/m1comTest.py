@@ -176,7 +176,7 @@ class Test_PyCom(unittest.TestCase):
         dll = m1com.PyCom()
         dllVersion = dll.getDllVersion()
 
-        version = ctypes.c_char_p(40*''.encode())
+        version = ctypes.create_string_buffer(40)
         dll.M1C_GetVersion(version, 40)
 
         self.assertEqual(dllVersion, version.value.decode())
@@ -1816,11 +1816,11 @@ class Test_SVIVariable(unittest.TestCase):
 if __name__ == "__main__":
 
     # Settings
-    ipAddress  = '10.14.41.163'      # Set ip address of the Bachmann PLC used for testing
+    ipAddress  = '192.168.1.163'      # Set ip address of the Bachmann PLC used for testing
     fastTest   = True                # Skip tests that require a reboot
 
     # List where name of tested methods will be saved
-    testedMethods = []
+    testedMethods = []    
 
     # Find all classes and there callable methods in m1com
     M1comClasses = {}
