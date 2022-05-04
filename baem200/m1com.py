@@ -1056,7 +1056,7 @@ class PyCom:
         'V1.14.99 Release'\n
         """
 
-        version = ctypes.c_char_p(40*"".encode('utf-8'))    #40byte buffer
+        version = ctypes.create_string_buffer(40)
         self.M1C_GetVersion(version, 40)
         return version.value.decode('utf-8')
 
