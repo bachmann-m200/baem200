@@ -1817,10 +1817,10 @@ if __name__ == "__main__":
 
     # Settings
     ipAddress  = '192.168.1.163'      # Set ip address of the Bachmann PLC used for testing
-    fastTest   = True                # Skip tests that require a reboot
+    fastTest   = False                # Skip tests that require a reboot
 
     # List where name of tested methods will be saved
-    testedMethods = []    
+    testedMethods = []
 
     # Find all classes and there callable methods in m1com
     M1comClasses = {}
