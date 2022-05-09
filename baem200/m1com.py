@@ -4,7 +4,8 @@
 # python classes to interact with a M1 Controller through M1Com and ctypes.
 
 import ctypes, os.path, shutil, sys
-from ctypes import wintypes
+if sys.platform == 'win32':
+    from ctypes import wintypes
 from time import strptime, localtime
 
 RFS_DIRLEN_A         = 200
@@ -216,25 +217,27 @@ def ctypesInfo2dict(ctypesInfo):
 
     return dictInfo.copy()
 
-class CERT_CONTEXT(ctypes.Structure):
-    _fields_ = [("dwCertEncodingType", ctypes.wintypes.DWORD),
-                ("pbCertEncoded", ctypes.POINTER(ctypes.wintypes.BYTE)),
-                ("cbCertEncoded", ctypes.wintypes.DWORD),
-                ("pCertInfo", ctypes.c_void_p),
-                ("hCertStore", ctypes.c_void_p)]
+if sys.platform == 'win32':
 
-class CRYPT_DATA_BLOB(ctypes.Structure):
-    _fields_ = [("cbData", ctypes.wintypes.DWORD),
-                ("pbData", ctypes.POINTER(ctypes.wintypes.BYTE))]
+    class CERT_CONTEXT(ctypes.Structure):
+        _fields_ = [("dwCertEncodingType", ctypes.wintypes.DWORD),
+                    ("pbCertEncoded", ctypes.POINTER(ctypes.wintypes.BYTE)),
+                    ("cbCertEncoded", ctypes.wintypes.DWORD),
+                    ("pCertInfo", ctypes.c_void_p),
+                    ("hCertStore", ctypes.c_void_p)]
 
-class WINBYTE_ARRAY(ctypes.Structure):
-    _fields_ = [('array_size', ctypes.c_short),
-                ('ARRAY', ctypes.POINTER(ctypes.wintypes.BYTE))]
+    class CRYPT_DATA_BLOB(ctypes.Structure):
+        _fields_ = [("cbData", ctypes.wintypes.DWORD),
+                    ("pbData", ctypes.POINTER(ctypes.wintypes.BYTE))]
 
-    def __init__(self,num_of_structs):
-        elems = (ctypes.wintypes.BYTE * num_of_structs)()
-        self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.wintypes.BYTE))
-        self.array_size = num_of_structs
+    class WINBYTE_ARRAY(ctypes.Structure):
+        _fields_ = [('array_size', ctypes.c_short),
+                    ('ARRAY', ctypes.POINTER(ctypes.wintypes.BYTE))]
+
+        def __init__(self,num_of_structs):
+            elems = (ctypes.wintypes.BYTE * num_of_structs)()
+            self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.wintypes.BYTE))
+            self.array_size = num_of_structs
 
 class BYTE_ARRAY(ctypes.Structure):
     _fields_ = [('array_size', ctypes.c_short),
@@ -324,15 +327,6 @@ class ULONGLONG_ARRAY(ctypes.Structure):
     def __init__(self,num_of_structs):
         elems = (ctypes.c_ulonglong * num_of_structs)()
         self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.c_ulonglong))
-        self.array_size = num_of_structs
-
-class UNICODE_ARRAY(ctypes.Structure):
-    _fields_ = [('array_size', ctypes.c_short),
-                ('ARRAY', ctypes.POINTER(ctypes.c_wchar))]
-
-    def __init__(self,num_of_structs):
-        elems = (ctypes.c_wchar * num_of_structs)()
-        self.ARRAY = ctypes.cast(elems, ctypes.POINTER(ctypes.c_wchar))
         self.array_size = num_of_structs
 
 class MODULE_NAME(ctypes.Structure):
@@ -686,7 +680,7 @@ class PyCom:
 
         self.operatingSystem = sys.platform
 
-        supportedOperatingSystems = ['win32']
+        supportedOperatingSystems = ['win32', 'linux']
 
         if self.operatingSystem not in supportedOperatingSystems:
             raise PyComException("pyCom Error: opperating system '"+str(self.operatingSystem)+"' currently not supported! Please check 'https://github.com/bachmann-m200/baem200/issues/28' whether this platform is already mentioned, otherwise notify the developers.")
@@ -695,18 +689,25 @@ class PyCom:
 
             # Select correct dll (32bit or 64bit)
             if sys.maxsize > 2**32: # 64bit
-                dllname = "m1com64.dll"
+                if sys.platform == "win32":
+                    dllname = "m1com64.dll"
+                else:
+                    dllname = "m1com.so"
                 self.bits = '64bit'
             else: # 32bit
-                dllname = "m1com.dll"
+                if sys.platform == "win32":
+                    dllname = "m1com.dll"
+                else:
+                    dllname = "libm1com.so"
                 self.bits = '32bit'
 
             # The search paths
             searchPath = sys.path
-            searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
-            searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
-            searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
-            searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
+            if sys.platform == "win32":
+                searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
+                searchPath.append("C:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
+                searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\x64")
+                searchPath.append("D:\\bachmann\\M1sw\\PC-Communication\\Windows\\m1com\\win32")
 
             # Look for the correct m1com dll in system paths
             for syspath in sys.path:
@@ -738,7 +739,7 @@ class PyCom:
         
         if(not(os.path.isfile("log.prp"))):
             print("pyCom Info: Missing log.prp in Application Directory!")
-            logprp = os.path.dirname(dllpath)+"\\log.prp"
+            logprp = os.path.join(os.path.dirname(dllpath), "log.prp")
             print("            Copy log.prp from dllpath: " + logprp)
             try:
                 shutil.copyfile(logprp, "log.prp")
@@ -988,9 +989,10 @@ class PyCom:
         self.TARGET_GetMaxCallSize.restype  = ctypes.c_long
 
         #M1COM SINT32 TARGET_SetSSLClientCertificateContext(M1C_H_TARGET targetHandle, PCERT_CONTEXT clientCertContext);
-        self.TARGET_SetSSLClientCertificateContext = m1Dll.TARGET_SetSSLClientCertificateContext
-        self.TARGET_SetSSLClientCertificateContext.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-        self.TARGET_SetSSLClientCertificateContext.restype  = ctypes.c_long
+        if sys.platform == "win32":
+            self.TARGET_SetSSLClientCertificateContext = m1Dll.TARGET_SetSSLClientCertificateContext
+            self.TARGET_SetSSLClientCertificateContext.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            self.TARGET_SetSSLClientCertificateContext.restype  = ctypes.c_long
 
         #M1COM SINT32 TARGET_GetConnectionState(M1C_H_TARGET targetHandle, M1C_CONNECTION_STATE* state);
         self.TARGET_GetConnectionState = m1Dll.TARGET_GetConnectionState
@@ -1033,19 +1035,20 @@ class PyCom:
         self.RFS_Remove.restype  = ctypes.c_long
 
         # SSL certificate import functions
-        crypt32 = ctypes.WinDLL("crypt32.dll", use_last_error=True)
+        if sys.platform == 'win32':
+            crypt32 = ctypes.WinDLL("crypt32.dll", use_last_error=True)
 
-        self.PFXImportCertStore = crypt32.PFXImportCertStore
-        self.PFXImportCertStore.argtypes = [ctypes.POINTER(CRYPT_DATA_BLOB), ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
-        self.PFXImportCertStore.restype = ctypes.c_void_p
+            self.PFXImportCertStore = crypt32.PFXImportCertStore
+            self.PFXImportCertStore.argtypes = [ctypes.POINTER(CRYPT_DATA_BLOB), ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
+            self.PFXImportCertStore.restype = ctypes.c_void_p
 
-        self.CertEnumCertificatesInStore = crypt32.CertEnumCertificatesInStore
-        self.CertEnumCertificatesInStore.argtypes = [ctypes.c_void_p, ctypes.POINTER(CERT_CONTEXT)]
-        self.CertEnumCertificatesInStore.restype = ctypes.POINTER(CERT_CONTEXT)
+            self.CertEnumCertificatesInStore = crypt32.CertEnumCertificatesInStore
+            self.CertEnumCertificatesInStore.argtypes = [ctypes.c_void_p, ctypes.POINTER(CERT_CONTEXT)]
+            self.CertEnumCertificatesInStore.restype = ctypes.POINTER(CERT_CONTEXT)
 
-        self.CertCloseStore = crypt32.CertCloseStore
-        self.CertCloseStore.argtypes = [ctypes.c_void_p, ctypes.wintypes.DWORD]
-        self.CertCloseStore.restype = ctypes.wintypes.BOOL
+            self.CertCloseStore = crypt32.CertCloseStore
+            self.CertCloseStore.argtypes = [ctypes.c_void_p, ctypes.wintypes.DWORD]
+            self.CertCloseStore.restype = ctypes.wintypes.BOOL
 
     def getDllVersion(self):
         """
@@ -1478,15 +1481,15 @@ class M1Controller:
             errorMsg = self.getErrorInfo(recv.RetCode)
             raise PyComException(("m1com Error: Can't list directory of Controller["+self._ip+"], error message: " + str(errorMsg)))
         
-        print("tm_sec: " + str(recv.Items.Attrib.ModTime.tm_sec))
-        print("tm_min: " + str(recv.Items.Attrib.ModTime.tm_min))
-        print("tm_hour: " + str(recv.Items.Attrib.ModTime.tm_hour))
-        print("tm_mday: " + str(recv.Items.Attrib.ModTime.tm_mday))
-        print("tm_mon: " + str(recv.Items.Attrib.ModTime.tm_mon))
-        print("tm_year: " + str(recv.Items.Attrib.ModTime.tm_year))
-        print("tm_wday: " + str(recv.Items.Attrib.ModTime.tm_wday))
-        print("tm_yday: " + str(recv.Items.Attrib.ModTime.tm_yday))
-        print("tm_isdst: " + str(recv.Items.Attrib.ModTime.tm_isdst))
+        #print("tm_sec: " + str(recv.Items.Attrib.ModTime.tm_sec))
+        #print("tm_min: " + str(recv.Items.Attrib.ModTime.tm_min))
+        #print("tm_hour: " + str(recv.Items.Attrib.ModTime.tm_hour))
+        #print("tm_mday: " + str(recv.Items.Attrib.ModTime.tm_mday))
+        #print("tm_mon: " + str(recv.Items.Attrib.ModTime.tm_mon))
+        #print("tm_year: " + str(recv.Items.Attrib.ModTime.tm_year))
+        #print("tm_wday: " + str(recv.Items.Attrib.ModTime.tm_wday))
+        #print("tm_yday: " + str(recv.Items.Attrib.ModTime.tm_yday))
+        #print("tm_isdst: " + str(recv.Items.Attrib.ModTime.tm_isdst))
         
         returnValue = recv.Items.Name
         
@@ -1992,7 +1995,7 @@ class M1SVIObserver:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['char8'])
                 elif (identifiyer == SVI_F_CHAR16):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['char16'])
                 elif(identifiyer == SVI_F_UINT64):
                     if self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i]) > 1:
@@ -2049,7 +2052,7 @@ class M1SVIObserver:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
                 elif(identifiyer == SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -2129,7 +2132,7 @@ class M1SVIObserver:
         value = None
         if updatedOnly:
             for i in range(countChangedVariables):
-                if hasattr(self._sviValues[self._indicesChanged[i]], 'value') and self._sviTypes[self._indicesChanged[i]] != [str]:
+                if hasattr(self._sviValues[self._indicesChanged[i]], 'value') and self._sviTypes[self._indicesChanged[i]] != [str] and self._sviTypes[self._indicesChanged[i]] != ['ustr'] and self._sviTypes[self._indicesChanged[i]] != ['char16']:
                     value = self._sviValues[self._indicesChanged[i]].value
                 else:
                     value = self._sviValues[self._indicesChanged[i]]
@@ -2138,8 +2141,11 @@ class M1SVIObserver:
                     value = str(value.decode('utf-8'))
                 elif self._sviTypes[self._indicesChanged[i]] == 'char8' or self._sviTypes[self._indicesChanged[i]] == ['char8']:
                     value = str(value.decode('utf-8'))
-                elif self._sviTypes[self._indicesChanged[i]] == 'char16' or self._sviTypes[self._indicesChanged[i]] == ['char16']:
+                elif self._sviTypes[self._indicesChanged[i]] == 'char16':
                     value = str(value)
+                elif self._sviTypes[self._indicesChanged[i]] == ['char16']:
+                    value = value.raw.decode('utf-16').split('\x00')
+                    value = value[0]        
                 elif self._sviTypes[self._indicesChanged[i]] == [bool]:
                     value = [bool(value.ARRAY[i]) for i in range(value.array_size)]
                 elif self._sviTypes[self._indicesChanged[i]] == [int]:
@@ -2150,15 +2156,13 @@ class M1SVIObserver:
                     value = value.raw.decode('utf-8').split('\x00')
                     value = value[0:len(value)-1]
                 elif self._sviTypes[self._indicesChanged[i]] == ['ustr']:
-                    value = [str(value.ARRAY[i]) for i in range(value.array_size)]
-                    value = ''.join(value).split('\x00')
-                    value = value[0:len(value)-1]
+                    value = value.raw.decode('utf-16').split('\x00')
                 else:
                     value = self._sviTypes[self._indicesChanged[i]](value)
                 variables.update({self.sviNames[self._indicesChanged[i]]:value})
         else:
             for i in range(self._countVariables):
-                if hasattr(self._sviValues[i], 'value') and self._sviTypes[i] != [str] and self._sviTypes[i] != ['ustr']:
+                if hasattr(self._sviValues[i], 'value') and self._sviTypes[i] != [str] and self._sviTypes[i] != ['ustr'] and self._sviTypes[i] != ['char16']:
                     value = self._sviValues[i].value
                 else:
                     value = self._sviValues[i]
@@ -2167,8 +2171,11 @@ class M1SVIObserver:
                     value = str(value.decode('utf-8'))
                 elif self._sviTypes[i] == 'char8' or self._sviTypes[i] == ['char8']:
                     value = str(value.decode('utf-8'))
-                elif self._sviTypes[i] == 'char16' or self._sviTypes[i] == ['char16']:
+                elif self._sviTypes[i] == 'char16':
                     value = str(value)
+                elif self._sviTypes[i] == ['char16']:
+                    value = value.raw.decode('utf-16').split('\x00')
+                    value = value[0]
                 elif self._sviTypes[i] == [bool]:
                     value = [bool(value.ARRAY[i]) for i in range(value.array_size)]
                 elif self._sviTypes[i] == [int]:
@@ -2179,9 +2186,7 @@ class M1SVIObserver:
                     value = value.raw.decode('utf-8').split('\x00')
                     value = value[0:len(value)-1]
                 elif self._sviTypes[i] == ['ustr']:
-                    value = [str(value.ARRAY[i]) for i in range(value.array_size)]
-                    value = ''.join(value).split('\x00')
-                    value = value[0:len(value)-1]
+                    value = value.raw.decode('utf-16').split('\x00')
                 else:
                     value = self._sviTypes[i](value)
                 variables.update({self.sviNames[i]:value})
@@ -2300,7 +2305,7 @@ class M1SVIReader:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['char8'])
                 elif (identifiyer == SVI_F_CHAR16):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['char16'])
                 elif(identifiyer == SVI_F_UINT64):
                     if self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i]) > 1:
@@ -2357,7 +2362,7 @@ class M1SVIReader:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
                 elif(identifiyer == SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -2414,7 +2419,7 @@ class M1SVIReader:
 
         sviValues = []
         for i in range(self._countVariables):
-            if hasattr(self._sviValues[i], 'value') and self._sviTypes[i] != [str] and self._sviTypes[i] != ['ustr']:
+            if hasattr(self._sviValues[i], 'value') and self._sviTypes[i] != [str] and self._sviTypes[i] != ['ustr'] and self._sviTypes[i] != ['char16']:
                 value = self._sviValues[i].value
             else:
                 value = self._sviValues[i]
@@ -2423,8 +2428,11 @@ class M1SVIReader:
                 sviValues.append(str(value.decode('utf-8')))
             elif self._sviTypes[i] == 'char8' or self._sviTypes[i] == ['char8']:
                 sviValues.append(str(value.decode('utf-8')))
-            elif self._sviTypes[i] == 'char16' or self._sviTypes[i] == ['char16']:
+            elif self._sviTypes[i] == 'char16':
                 sviValues.append(str(value))
+            elif self._sviTypes[i] == ['char16']:
+                value = value.raw.decode('utf-16').split('\x00')
+                sviValues.append(value[0])
             elif self._sviTypes[i] == [bool]:
                 sviValues.append([bool(value.ARRAY[i]) for i in range(value.array_size)])
             elif self._sviTypes[i] == [int]:
@@ -2435,9 +2443,8 @@ class M1SVIReader:
                 value = value.raw.decode('utf-8').split('\x00')
                 sviValues.append(value[0:len(value)-1])
             elif self._sviTypes[i] == ['ustr']:
-                value = [str(value.ARRAY[i]) for i in range(value.array_size)]
-                value = ''.join(value).split('\x00')
-                sviValues.append(value[0:len(value)-1])
+                value = value.raw.decode('utf-16').split('\x00')
+                sviValues.append(value)
             else:
                 sviValues.append(self._sviTypes[i](value))
 
@@ -2545,7 +2552,7 @@ class M1SVIWriter:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
                     self._sviTypes.append(['char8'])
                 elif (identifiyer == SVI_F_CHAR16):
-                    self._sviValues.append(ctypes.create_unicode_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['char16'])
                 elif(identifiyer == SVI_F_UINT64):
                     if self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i]) > 1:
@@ -2602,7 +2609,7 @@ class M1SVIWriter:
                     self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])))
                     self._sviTypes.append([str])
                 elif(identifiyer == SVI_F_USTRINGLSTBASE):
-                    self._sviValues.append(UNICODE_ARRAY(self.m1ctrl._pycom.VARIABLE_getArrayLen(self._sviInfos[i])))
+                    self._sviValues.append(ctypes.create_string_buffer(self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])*2))
                     self._sviTypes.append(['ustr'])
                 else:
                     raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._sviInfos[i].format)+" of Variable:"+self.sviNames[i])
@@ -2711,8 +2718,14 @@ class M1SVIWriter:
 
             if self._sviTypes[i] == 'char8' or self._sviTypes[i] == ['char8']:
                 self._sviValues[i].value = sviValues[i].encode('utf-8')
-            elif self._sviTypes[i] == 'char16' or self._sviTypes[i] == ['char16']:
+            elif self._sviTypes[i] == 'char16':
                 self._sviValues[i].value = sviValues[i]
+            elif  self._sviTypes[i] == ['char16']:
+                bufferLen = self.m1ctrl._pycom.VARIABLE_GetBufferLen(self._sviInfos[i])
+                byteArray = ''
+                for j in range(len(sviValues[i])):
+                    byteArray = byteArray + sviValues[i][j] + '\x00'
+                self._sviValues[i].raw = byteArray.encode('utf-8')
             elif self._sviTypes[i] == [bool]:
                 for j in range(len(sviValues[i])):
                     self._sviValues[i].ARRAY[j] = sviValues[i][j]
@@ -2733,8 +2746,7 @@ class M1SVIWriter:
                 byteArray = ''
                 for j in range(len(sviValues[i])):
                     byteArray = byteArray + sviValues[i][j] + '\x00'
-                for j in range(len(byteArray)):
-                    self._sviValues[i].ARRAY[j] = byteArray[j]
+                self._sviValues[i].raw = byteArray.encode('utf-16')
             else:
                 self._sviValues[i].value = sviValues[i]
 
@@ -2997,7 +3009,7 @@ class _SVIVariable:
                 value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
                 valueType = ['char8']
             elif (identifiyer == SVI_F_CHAR16):
-                value = ctypes.create_unicode_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
+                value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo)*2)
                 valueType = ['char16']
             elif(identifiyer == SVI_F_UINT64):
                 if self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo) > 1:
@@ -3054,7 +3066,7 @@ class _SVIVariable:
                 value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
                 valueType = [str]
             elif(identifiyer == SVI_F_USTRINGLSTBASE):
-                value = UNICODE_ARRAY(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo))
+                value = ctypes.create_string_buffer(self._m1ctrl._pycom.VARIABLE_getArrayLen(self._varInfo)*2)
                 valueType = ['ustr']
             else:
                 raise PyComException("pyCom Error: unknown SVIBLK Type!"+str(self._varInfo.format)+" of Variable:"+self.name)
@@ -3110,7 +3122,9 @@ class _SVIVariable:
             return str(value.decode('utf-8'))
         elif valueType == 'char8' or valueType == ['char8']:
             return str(value.decode('utf-8'))
-        elif valueType == 'char16' or valueType == ['char16']:
+        elif valueType == 'char16':
+            return str(value)
+        elif valueType == ['char16']:
             return str(value)
         elif valueType == [bool]:
             return [bool(value.ARRAY[i]) for i in range(value.array_size)]
@@ -3122,9 +3136,8 @@ class _SVIVariable:
             value = value.raw.decode('utf-8').split('\x00')
             return value[0:len(value)-1]
         elif valueType == ['ustr']:
-            value = [str(value.ARRAY[i]) for i in range(value.array_size)]
-            value = ''.join(value).split('\x00')
-            return value[0:len(value)-1]
+            value = value.raw.decode('utf-16').split('\x00')
+            return value
         else:
             return valueType(value)
 
@@ -3316,7 +3329,7 @@ class _SVIVariable:
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with type 'str' elements")
                 if ((arrayLen % len(data)) != 0):
                     raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'list' with correct number of elements of type 'str'")
-                value = UNICODE_ARRAY(bufferLen)
+                value = ctypes.create_string_buffer(bufferLen)
                 byteArray = ''
                 for i in range(len(data)):
                     if type(data[i]) != str:
@@ -3324,8 +3337,7 @@ class _SVIVariable:
                     if int(bufferLen/len(data)) < len(data[i]):
                         raise PyComException("pyCom Error: Svi Variable["+self.name+"] expects type 'str' or maximum length "+str(int(bufferLen/len(data))))
                     byteArray = byteArray + data[i] + '\x00'
-                for i in range(len(byteArray)):
-                    value.ARRAY[i] = byteArray[i]
+                value.raw = byteArray.encode('utf-16')
             else:
                 raise PyComException("pyCom Error: unknown SVIBLK Type! "+str(self._varInfo.format)+" of Variable:"+self.name)
         else:
