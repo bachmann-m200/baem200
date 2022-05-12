@@ -1,0 +1,89 @@
+\hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader}{}\doxysection{baem200.\+baem200.\+m1com.\+M1\+SVIReader Class Reference}
+\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader}\index{baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a30c461050fc6b7f25349719ec1cced0c}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a30c461050fc6b7f25349719ec1cced0c}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, svi\+Names, m1controller)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_afbab0ab7a1b03c84496f61584de83579}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_afbab0ab7a1b03c84496f61584de83579}} 
+def {\bfseries \+\_\+\+\_\+enter\+\_\+\+\_\+} (self)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_ab1435a42053894c62ff2fb65da7472ba}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_ab1435a42053894c62ff2fb65da7472ba}} 
+def {\bfseries \+\_\+\+\_\+exit\+\_\+\+\_\+} (self, exception\+\_\+type, exception\+\_\+value, traceback)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_aac6dec2eb5ce8693e634322c31eb356f}{detach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a1be516180097d0b4c4659a7d5907bd98}{get\+SVIHandles}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a3b2f2b2cb070ca6f83a5992b207c6211}{attach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a896690686bfbbba5c0b6d0b4e0aa4235}{get\+Variables}} (self)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_ad5e5fef37de90f3f2afabbcac17ff737}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_ad5e5fef37de90f3f2afabbcac17ff737}} 
+{\bfseries svi\+Names}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a728bbb0cd3fb1a78deeb8956a996c6bc}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a728bbb0cd3fb1a78deeb8956a996c6bc}} 
+{\bfseries m1ctrl}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}SVI Reader to read multiple SVI variables at the same time (not recommended since the M1SVIObserver is faster and
+has the same functionality).
+
+Usage:
+
+>>> mh = M1Controller(ip='192.0.1.230')
+>>> mh.connect(timeout=3000)
+>>> sviReader = M1SVIReader(['SVIWRITE/boolVar', 'SVIWRITE/real64Var', 'SVIWRITE/stringVar'], mh)       # doctest: +SKIP 
+>>> sviReader.getVariables()                                                                            # doctest: +SKIP 
+[True, 1.0, "Hello"]
+>>> sviReader.detach()                                                                                  # doctest: +SKIP 
+>>> mh.disconnect()
+0
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a3b2f2b2cb070ca6f83a5992b207c6211}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a3b2f2b2cb070ca6f83a5992b207c6211}} 
+\index{baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}!attach@{attach}}
+\index{attach@{attach}!baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}}
+\doxysubsubsection{\texorpdfstring{attach()}{attach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIReader.\+attach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Allocates buffers for the to be read SVI variables. This function is already automatically called during the initialization
+and should therefore only be called if 'M1SVIReader.detach()' was called.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_aac6dec2eb5ce8693e634322c31eb356f}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_aac6dec2eb5ce8693e634322c31eb356f}} 
+\index{baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}!detach@{detach}}
+\index{detach@{detach}!baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}}
+\doxysubsubsection{\texorpdfstring{detach()}{detach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIReader.\+detach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Disposes all SVI variables and resets the internal buffers.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a1be516180097d0b4c4659a7d5907bd98}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a1be516180097d0b4c4659a7d5907bd98}} 
+\index{baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}!getSVIHandles@{getSVIHandles}}
+\index{getSVIHandles@{getSVIHandles}!baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}}
+\doxysubsubsection{\texorpdfstring{getSVIHandles()}{getSVIHandles()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIReader.\+get\+SVIHandles (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the SVI variable handles from the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a896690686bfbbba5c0b6d0b4e0aa4235}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader_a896690686bfbbba5c0b6d0b4e0aa4235}} 
+\index{baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}!getVariables@{getVariables}}
+\index{getVariables@{getVariables}!baem200.baem200.m1com.M1SVIReader@{baem200.baem200.m1com.M1SVIReader}}
+\doxysubsubsection{\texorpdfstring{getVariables()}{getVariables()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIReader.\+get\+Variables (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Gets the SVI values of the controller.
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+m1com.\+py\end{DoxyCompactItemize}

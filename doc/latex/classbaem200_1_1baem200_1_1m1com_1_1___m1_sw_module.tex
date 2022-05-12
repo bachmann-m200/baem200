@@ -1,0 +1,101 @@
+\hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module}{}\doxysection{baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module Class Reference}
+\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module}\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a903e250d7a5b964986e5b5ae8c254800}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a903e250d7a5b964986e5b5ae8c254800}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, name, m1controller)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_afb16977f0946341421a7666844974fb8}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_afb16977f0946341421a7666844974fb8}} 
+def {\bfseries \+\_\+\+\_\+enter\+\_\+\+\_\+} (self)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a0b29e2760adb7a24214ccb62bec59b96}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a0b29e2760adb7a24214ccb62bec59b96}} 
+def {\bfseries \+\_\+\+\_\+exit\+\_\+\+\_\+} (self, exception\+\_\+type, exception\+\_\+value, traceback)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a65340550f8bacc9b8dadf1ccfda702d8}{detach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_abf087d3842c64004321f91ebb9d80578}{get\+Mod\+Handle}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a7ce8f9e9868bad33ebcccaf85dcdfcfa}{attach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a4b2048164ff62b4ff7b6d318e03d1811}{get\+Numberof\+Svi\+Variables}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a5633914335c38e4ddf34d5b1218a1c35}{get\+Listof\+Svi\+Variables}} (self)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_ae70376d11d17f039152392dcb8ed75a7}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_ae70376d11d17f039152392dcb8ed75a7}} 
+{\bfseries name}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a628d0ba8dbb9110abd315c7797fc0dd4}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a628d0ba8dbb9110abd315c7797fc0dd4}} 
+{\bfseries m1ctrl}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}The _M1SwModule class.
+
+Usage:
+
+>>> mh = M1Controller(ip='192.0.1.230')
+>>> mh.connect(timeout=3000)
+>>> swModule = _M1SwModule('RES', mh)
+>>> swModule.getModHandle()                                                                 # doctest: +SKIP 
+>>> swModule.getNumberofSviVariables()                                                      # doctest: +SKIP 
+371
+>>> swModule.getListofSviVariables()                                                        # doctest: +SKIP 
+>>> mh.disconnect()
+0
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a7ce8f9e9868bad33ebcccaf85dcdfcfa}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a7ce8f9e9868bad33ebcccaf85dcdfcfa}} 
+\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}!attach@{attach}}
+\index{attach@{attach}!baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsubsection{\texorpdfstring{attach()}{attach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module.\+attach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Creates a handle to a software module. This function is already automatically called after initializing a software module.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a65340550f8bacc9b8dadf1ccfda702d8}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a65340550f8bacc9b8dadf1ccfda702d8}} 
+\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}!detach@{detach}}
+\index{detach@{detach}!baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsubsection{\texorpdfstring{detach()}{detach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module.\+detach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Performs cleanup of the software module.
+Note: RES module can not be disposed with this function.
+The handle is no longer valid after calling this function.
+If other threads use the module the caller has to stop them before disposing the module!
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a5633914335c38e4ddf34d5b1218a1c35}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a5633914335c38e4ddf34d5b1218a1c35}} 
+\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}!getListofSviVariables@{getListofSviVariables}}
+\index{getListofSviVariables@{getListofSviVariables}!baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsubsection{\texorpdfstring{getListofSviVariables()}{getListofSviVariables()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module.\+get\+Listof\+Svi\+Variables (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get a list (in dictonary format) of all variables of the software module.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_abf087d3842c64004321f91ebb9d80578}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_abf087d3842c64004321f91ebb9d80578}} 
+\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}!getModHandle@{getModHandle}}
+\index{getModHandle@{getModHandle}!baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsubsection{\texorpdfstring{getModHandle()}{getModHandle()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module.\+get\+Mod\+Handle (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get module handle from target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a4b2048164ff62b4ff7b6d318e03d1811}\label{classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module_a4b2048164ff62b4ff7b6d318e03d1811}} 
+\index{baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}!getNumberofSviVariables@{getNumberofSviVariables}}
+\index{getNumberofSviVariables@{getNumberofSviVariables}!baem200.baem200.m1com.\_M1SwModule@{baem200.baem200.m1com.\_M1SwModule}}
+\doxysubsubsection{\texorpdfstring{getNumberofSviVariables()}{getNumberofSviVariables()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+M1\+Sw\+Module.\+get\+Numberof\+Svi\+Variables (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the count of variables of the software module.
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+m1com.\+py\end{DoxyCompactItemize}
