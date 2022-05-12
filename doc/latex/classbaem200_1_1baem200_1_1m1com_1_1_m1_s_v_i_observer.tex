@@ -1,0 +1,113 @@
+\hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer}{}\doxysection{baem200.\+baem200.\+m1com.\+M1\+SVIObserver Class Reference}
+\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer}\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_aafe9531744e5bb63c0e2a80d0991bb9f}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_aafe9531744e5bb63c0e2a80d0991bb9f}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, svi\+Names, m1controller)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a28541c5047527ec5d83d18aa17dc3a3a}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a28541c5047527ec5d83d18aa17dc3a3a}} 
+def {\bfseries \+\_\+\+\_\+enter\+\_\+\+\_\+} (self)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a6528a642d0f966244db5818e73ac50d1}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a6528a642d0f966244db5818e73ac50d1}} 
+def {\bfseries \+\_\+\+\_\+exit\+\_\+\+\_\+} (self, exception\+\_\+type, exception\+\_\+value, traceback)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_ac3eab0448f384fb4b76fa1f8728ecb34}{detach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a4586782bf43ed1d827af55e62c8a115f}{get\+Obs\+Handle}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a786c40811807fb44aa3216627a4ea385}{attach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_adbaea76e5fe3a8f4fc2481c4df35dafa}{update}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a61ac756f4cb9cdaace2bd866a28f8b7c}{get\+Variables}} (self, updated\+Only=True)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_af4cb08e46e5a570eac250cc4df19acb7}{reset}} (self)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_ad1b179f8031a698de11dc55ba2dee8c8}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_ad1b179f8031a698de11dc55ba2dee8c8}} 
+{\bfseries svi\+Names}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_acab021faf8f0213427b626f9dcef70a2}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_acab021faf8f0213427b626f9dcef70a2}} 
+{\bfseries m1ctrl}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}SVI Observer to monitor/read multiple SVI variables at the same time. This method is preferred above the M1SVIReader method
+since it only communicates variables that were changed during a call. If you also want the values of variables that did not
+change, you can call M1SVIObserver.getVariables(updatedOnly=False). This still returns all variables, also the variables that
+did not change, but is also faster than using the M1SVIReader method.
+
+Usage:
+
+>>> mh = M1Controller(ip='192.0.1.230')
+>>> mh.connect(timeout=3000)
+>>> sviObserver = M1SVIObserver(['RES/Time_s', 'RES/Time_us', 'RES/Version'], mh)
+>>> sviObserver.getVariables()                                                                  # doctest: +SKIP 
+>>> sviObserver.detach()
+>>> mh.disconnect()
+0
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a786c40811807fb44aa3216627a4ea385}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a786c40811807fb44aa3216627a4ea385}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!attach@{attach}}
+\index{attach@{attach}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{attach()}{attach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+attach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Creates an observation list. For all variables vhd lists are allocated on the controller.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_ac3eab0448f384fb4b76fa1f8728ecb34}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_ac3eab0448f384fb4b76fa1f8728ecb34}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!detach@{detach}}
+\index{detach@{detach}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{detach()}{detach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+detach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Disposes the observation list.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a4586782bf43ed1d827af55e62c8a115f}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a4586782bf43ed1d827af55e62c8a115f}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!getObsHandle@{getObsHandle}}
+\index{getObsHandle@{getObsHandle}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{getObsHandle()}{getObsHandle()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+get\+Obs\+Handle (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get observer handle from target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a61ac756f4cb9cdaace2bd866a28f8b7c}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_a61ac756f4cb9cdaace2bd866a28f8b7c}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!getVariables@{getVariables}}
+\index{getVariables@{getVariables}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{getVariables()}{getVariables()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+get\+Variables (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{updated\+Only = {\ttfamily True} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Gets the updated variables from the controller. This function already calls M1SVIObserver.update() to make sure the
+newest values are inside the observer buffer. By default, only the changed variables are returned. If all variables
+should be returned, the 'updatedOnly' argument of this method can be set to False.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_af4cb08e46e5a570eac250cc4df19acb7}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_af4cb08e46e5a570eac250cc4df19acb7}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!reset@{reset}}
+\index{reset@{reset}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{reset()}{reset()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+reset (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Resets the observation list. All allocated vhd lists associated with this observation list on the controller will
+be resetted. The next call to M1SVIObserver.update() will update all values of the contained variables.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_adbaea76e5fe3a8f4fc2481c4df35dafa}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer_adbaea76e5fe3a8f4fc2481c4df35dafa}} 
+\index{baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}!update@{update}}
+\index{update@{update}!baem200.baem200.m1com.M1SVIObserver@{baem200.baem200.m1com.M1SVIObserver}}
+\doxysubsubsection{\texorpdfstring{update()}{update()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+SVIObserver.\+update (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}The first call of this function will update all values of the contained variables. Subsequent calls will only update
+changed variables.
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+m1com.\+py\end{DoxyCompactItemize}

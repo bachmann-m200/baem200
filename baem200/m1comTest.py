@@ -555,6 +555,38 @@ class Test_M1Controller(unittest.TestCase):
 
         testedMethods.append('M1Controller.getErrorInfo')
 
+    def test_getNetworkInfo(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Get controller network information
+        networkInfo = mh.getNetworkInfo("eth0")
+        self.assertEqual(type(networkInfo), dict)
+        assertNotBytes(self, networkInfo)
+
+        # Check whether disconnect was successful
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.getNetworkInfo')
+    
+    def test_setIP(self):
+        mh = m1com.M1Controller(ip=ipAddress)
+        mh.connect(timeout=3000)
+
+        # Set controller IP
+        mh.setIP("eth0", "192.168.1.164", "255.255.255.0")
+
+        # Get new controller IP
+
+        # Reset controller IP
+
+        # Get new controller IP
+
+        # Check whether disconnect was successful
+        self.assertEqual(mh.disconnect(), 0)
+
+        testedMethods.append('M1Controller.setIP')
+
     def test_setDateTime(self):
         mh = m1com.M1Controller(ip=ipAddress)
         mh.connect(timeout=3000)
@@ -1821,6 +1853,10 @@ if __name__ == "__main__":
 
     # List where name of tested methods will be saved
     testedMethods = []
+
+    test = Test_M1Controller()
+    test.test_getNetworkInfo()
+    test.test_setIP()
 
     # Find all classes and there callable methods in m1com
     M1comClasses = {}

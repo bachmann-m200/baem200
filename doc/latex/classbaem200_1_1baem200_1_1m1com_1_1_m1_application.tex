@@ -1,0 +1,111 @@
+\hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application}{}\doxysection{baem200.\+baem200.\+m1com.\+M1\+Application Class Reference}
+\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application}\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a4a2a5848f7923064c5e57a2fbae8556f}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a4a2a5848f7923064c5e57a2fbae8556f}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, application\+Name, m1controller)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa22ce6c1daab099d8ca5173fd91baf82}{deinit}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_abbe44c42df356c5afd093fef1f73a7a9}{reset}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aad18d2237a274b0fb177afabb897ad2b}{stop}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a06b21954f8b27089bfa054d06b5440e7}{init}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa6a9fde8dd52ac55e55010b87f7e3da3}{start}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a6443ff88e167313129423e426f95f02e}{get\+Info}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a3432222395bc2727bdf068d7a33c58c5}{get\+State}} (self)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a4c51ae42378b4c7d5c6354958dbad9e1}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a4c51ae42378b4c7d5c6354958dbad9e1}} 
+{\bfseries application\+Name}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}The M1Application class. Can be used to stop, start, reset, deinit an application on a target.
+
+Usage:
+
+>>> mh = M1Controller(ip='192.0.1.230')
+>>> mh.connect(timeout=3000)
+>>> app = M1Application('SVIWRITE', mh)                                                     # doctest: +SKIP 
+>>> app.stop()                                                                              # doctest: +SKIP 
+>>> app.start()                                                                             # doctest: +SKIP 
+>>> app.reset()                                                                             # doctest: +SKIP 
+>>> app.deinit()                                                                            # doctest: +SKIP 
+>>> app.getInfo()                                                                           # doctest: +SKIP 
+>>> app.getState()                                                                          # doctest: +SKIP 
+>>> mh.disconnect()
+0
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa22ce6c1daab099d8ca5173fd91baf82}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa22ce6c1daab099d8ca5173fd91baf82}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!deinit@{deinit}}
+\index{deinit@{deinit}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{deinit()}{deinit()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+deinit (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Deinitializes the application on the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a6443ff88e167313129423e426f95f02e}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a6443ff88e167313129423e426f95f02e}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!getInfo@{getInfo}}
+\index{getInfo@{getInfo}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{getInfo()}{getInfo()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+get\+Info (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Gets info about the application from the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a3432222395bc2727bdf068d7a33c58c5}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a3432222395bc2727bdf068d7a33c58c5}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!getState@{getState}}
+\index{getState@{getState}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{getState()}{getState()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+get\+State (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Gets the current state of the application from the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a06b21954f8b27089bfa054d06b5440e7}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_a06b21954f8b27089bfa054d06b5440e7}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!init@{init}}
+\index{init@{init}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{init()}{init()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+init (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Initializes the application on the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_abbe44c42df356c5afd093fef1f73a7a9}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_abbe44c42df356c5afd093fef1f73a7a9}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!reset@{reset}}
+\index{reset@{reset}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{reset()}{reset()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+reset (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Resets the application on the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa6a9fde8dd52ac55e55010b87f7e3da3}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aa6a9fde8dd52ac55e55010b87f7e3da3}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!start@{start}}
+\index{start@{start}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{start()}{start()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+start (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Starts the stopped application on the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aad18d2237a274b0fb177afabb897ad2b}\label{classbaem200_1_1baem200_1_1m1com_1_1_m1_application_aad18d2237a274b0fb177afabb897ad2b}} 
+\index{baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}!stop@{stop}}
+\index{stop@{stop}!baem200.baem200.m1com.M1Application@{baem200.baem200.m1com.M1Application}}
+\doxysubsubsection{\texorpdfstring{stop()}{stop()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+M1\+Application.\+stop (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Stops the application on the target.
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+m1com.\+py\end{DoxyCompactItemize}

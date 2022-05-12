@@ -1,0 +1,112 @@
+\hypertarget{namespacebaem200_1_1baem200_1_1utils}{}\doxysection{baem200.\+baem200.\+utils Namespace Reference}
+\label{namespacebaem200_1_1baem200_1_1utils}\index{baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_adc15eba6e34c72a2334e5449d013ea6b}{get\+Project\+Data}} (project\+List, serial\+Nb)
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_a295d3d26c1edb071695de2be6c87b44e}{set\+Ip}} (serialnb, newip, oldip=\textquotesingle{}192.\+0.\+1.\+230\textquotesingle{}, ipmask=\textquotesingle{}255.\+255.\+255.\+0\textquotesingle{})
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_a88e5a5f5ff7aefbd5faa46d119e19d99}{blink\+Device}} (serialnb)
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_a28a64e6b45a17067bc6ef9597b3fbda8}{add\+New\+Scada\+Device}} ()
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_a0779eabf56cfb1f121da42d643ee710a}{find\+New\+M1}} ()
+\item 
+def \mbox{\hyperlink{namespacebaem200_1_1baem200_1_1utils_a8ecf2fd886f61f251ee62a858cb3f126}{find\+M1}} (devices\+Data)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a5213a87eb4b575e1bd3684dcbc059400}\label{namespacebaem200_1_1baem200_1_1utils_a5213a87eb4b575e1bd3684dcbc059400}} 
+{\bfseries verbose}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}Created on 05.08.2019
+
+@author: neumann
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a28a64e6b45a17067bc6ef9597b3fbda8}\label{namespacebaem200_1_1baem200_1_1utils_a28a64e6b45a17067bc6ef9597b3fbda8}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!addNewScadaDevice@{addNewScadaDevice}}
+\index{addNewScadaDevice@{addNewScadaDevice}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{addNewScadaDevice()}{addNewScadaDevice()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+add\+New\+Scada\+Device (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Add a new scada device
+
+Usage:
+
+>>> addNewScadaDevice()
+\end{DoxyVerb}
+ \mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a88e5a5f5ff7aefbd5faa46d119e19d99}\label{namespacebaem200_1_1baem200_1_1utils_a88e5a5f5ff7aefbd5faa46d119e19d99}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!blinkDevice@{blinkDevice}}
+\index{blinkDevice@{blinkDevice}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{blinkDevice()}{blinkDevice()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+blink\+Device (\begin{DoxyParamCaption}\item[{}]{serialnb }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Blink a device using its serial number
+
+Usage:
+
+>>> serialnb = ""
+>>> blinkDevice(serialnb)
+\end{DoxyVerb}
+ \mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a8ecf2fd886f61f251ee62a858cb3f126}\label{namespacebaem200_1_1baem200_1_1utils_a8ecf2fd886f61f251ee62a858cb3f126}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!findM1@{findM1}}
+\index{findM1@{findM1}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{findM1()}{findM1()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+find\+M1 (\begin{DoxyParamCaption}\item[{}]{devices\+Data }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Find a M1 target.
+
+Usage:
+
+>>> devicesData = 0
+>>> mh = findM1(devicesData)
+\end{DoxyVerb}
+ \mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a0779eabf56cfb1f121da42d643ee710a}\label{namespacebaem200_1_1baem200_1_1utils_a0779eabf56cfb1f121da42d643ee710a}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!findNewM1@{findNewM1}}
+\index{findNewM1@{findNewM1}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{findNewM1()}{findNewM1()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+find\+New\+M1 (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Find a new M1 target.
+
+Usage:
+
+>>> mh = findNewM1()
+\end{DoxyVerb}
+ \mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_adc15eba6e34c72a2334e5449d013ea6b}\label{namespacebaem200_1_1baem200_1_1utils_adc15eba6e34c72a2334e5449d013ea6b}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!getProjectData@{getProjectData}}
+\index{getProjectData@{getProjectData}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{getProjectData()}{getProjectData()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+get\+Project\+Data (\begin{DoxyParamCaption}\item[{}]{project\+List,  }\item[{}]{serial\+Nb }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get project data.
+
+Usage:
+
+>>> projectList = ""
+>>> serialNb = ""
+>>> getProjectData(projectList, serialNb)
+\end{DoxyVerb}
+ \mbox{\Hypertarget{namespacebaem200_1_1baem200_1_1utils_a295d3d26c1edb071695de2be6c87b44e}\label{namespacebaem200_1_1baem200_1_1utils_a295d3d26c1edb071695de2be6c87b44e}} 
+\index{baem200.baem200.utils@{baem200.baem200.utils}!setIp@{setIp}}
+\index{setIp@{setIp}!baem200.baem200.utils@{baem200.baem200.utils}}
+\doxysubsubsection{\texorpdfstring{setIp()}{setIp()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+utils.\+set\+Ip (\begin{DoxyParamCaption}\item[{}]{serialnb,  }\item[{}]{newip,  }\item[{}]{oldip = {\ttfamily \textquotesingle{}192.0.1.230\textquotesingle{}},  }\item[{}]{ipmask = {\ttfamily \textquotesingle{}255.255.255.0\textquotesingle{}} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Set a different ip address for a device.
+
+Usage:
+
+>>> serialnb = ""
+>>> newip = 10.14.41.167
+>>> setIp(serialnb, newip)
+\end{DoxyVerb}
+ 

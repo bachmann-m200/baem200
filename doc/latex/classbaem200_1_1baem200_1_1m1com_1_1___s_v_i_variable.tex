@@ -1,0 +1,191 @@
+\hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable}{}\doxysection{baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable Class Reference}
+\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable}\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_af0bd95ae661d580a3de3875104204ac4}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_af0bd95ae661d580a3de3875104204ac4}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, name, module)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a7346e125afaebcfb32c091fd52c6d8db}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a7346e125afaebcfb32c091fd52c6d8db}} 
+def {\bfseries \+\_\+\+\_\+enter\+\_\+\+\_\+} (self)
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a05a0f43db23ad42303ce0f3a2a72c45b}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a05a0f43db23ad42303ce0f3a2a72c45b}} 
+def {\bfseries \+\_\+\+\_\+exit\+\_\+\+\_\+} (self, exception\+\_\+type, exception\+\_\+value, traceback)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_afe9d0a3aa14773b04204f36f9c5f4f35}{detach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a690fcfb1032f4847d922734f2d08c898}{get\+Var\+Handle}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a2280a1ceae2853e4191000521d9f50af}{get\+Var\+Info}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1a62adcb04e34fb42b4ee7f42adcb288}{attach}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8ec8863cfb16df24a0d037be9d4a1af4}{update\+Var\+Info}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a3ffdd5a8415a0476f9956a1a14496603}{read}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8a0e4aa9518464c73dcaaa813e0aa19b}{write}} (self, data)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1bc57be959617fb53bf72290abfec1a2}{get\+Connection\+State}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a66252d1e5c51157c4e4a5aa643b8db45}{get\+Full\+Name}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aff66aac0d53aabd6cace3045573a8f5a}{get\+Array\+Len}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a7627d782a85d268ba313d4e35bbad9bc}{get\+Base\+Data\+Type}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a5eb50b36c945d5a5fa8010ffa9d5fd68}{check\+Readable}} (self)
+\item 
+def \mbox{\hyperlink{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aed7db487c5366fc0e47e88a244f53e91}{check\+Writable}} (self)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_ae994e27e1014a26a998544b19db37234}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_ae994e27e1014a26a998544b19db37234}} 
+{\bfseries name}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyVerb}The _SVIVariable class.
+
+Usage:
+
+>>> mh = M1Controller(ip='192.0.1.230')
+>>> mh.connect(timeout=3000)
+>>> swModule = _M1SwModule('RES', mh)
+>>> sviVariable = _SVIVariable('RES/CPU/TempCelsius', swModule)
+>>> sviVariable.getVarHandle()                                                              # doctest: +SKIP 
+>>> sviVariable.getVarInfo()                                                                # doctest: +SKIP 
+>>> sviVariable.updateVarInfo()                                                             # doctest: +SKIP 
+>>> sviVariable.read()                                                                      # doctest: +SKIP 
+40
+>>> sviVariable.write(22)                                                                   # doctest: +SKIP 
+>>> sviVariable.getConnectionState()
+'ONLINE'
+>>> sviVariable.getBaseDataType()
+'SVI_F_SINT32'
+>>> sviVariable.checkWritable()
+False
+>>> sviVariable.checkReadable()
+True
+>>> sviVariable.getArrayLen()
+1
+>>> sviVariable.getFullName()
+'RES/CPU/TempCelsius'
+>>> sviVariable.detach()
+>>> mh.disconnect()
+0
+\end{DoxyVerb}
+ 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1a62adcb04e34fb42b4ee7f42adcb288}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1a62adcb04e34fb42b4ee7f42adcb288}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!attach@{attach}}
+\index{attach@{attach}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{attach()}{attach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+attach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Creates a handle to a variable and initializes it. This function is already automatically called after initializing a software module.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a5eb50b36c945d5a5fa8010ffa9d5fd68}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a5eb50b36c945d5a5fa8010ffa9d5fd68}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!checkReadable@{checkReadable}}
+\index{checkReadable@{checkReadable}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{checkReadable()}{checkReadable()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+check\+Readable (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Check if the SVI variable is readable (returns True or False).
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aed7db487c5366fc0e47e88a244f53e91}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aed7db487c5366fc0e47e88a244f53e91}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!checkWritable@{checkWritable}}
+\index{checkWritable@{checkWritable}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{checkWritable()}{checkWritable()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+check\+Writable (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Check if the SVI variable is writable (returns True or False).
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_afe9d0a3aa14773b04204f36f9c5f4f35}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_afe9d0a3aa14773b04204f36f9c5f4f35}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!detach@{detach}}
+\index{detach@{detach}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{detach()}{detach()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+detach (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Disposes the variable handle.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aff66aac0d53aabd6cace3045573a8f5a}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_aff66aac0d53aabd6cace3045573a8f5a}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getArrayLen@{getArrayLen}}
+\index{getArrayLen@{getArrayLen}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getArrayLen()}{getArrayLen()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Array\+Len (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the array length of the SVI variable.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a7627d782a85d268ba313d4e35bbad9bc}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a7627d782a85d268ba313d4e35bbad9bc}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getBaseDataType@{getBaseDataType}}
+\index{getBaseDataType@{getBaseDataType}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getBaseDataType()}{getBaseDataType()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Base\+Data\+Type (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the base datatype of the SVI variable.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1bc57be959617fb53bf72290abfec1a2}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a1bc57be959617fb53bf72290abfec1a2}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getConnectionState@{getConnectionState}}
+\index{getConnectionState@{getConnectionState}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getConnectionState()}{getConnectionState()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Connection\+State (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the connection state of the SVI variable.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a66252d1e5c51157c4e4a5aa643b8db45}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a66252d1e5c51157c4e4a5aa643b8db45}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getFullName@{getFullName}}
+\index{getFullName@{getFullName}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getFullName()}{getFullName()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Full\+Name (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the full name of the SVI variable.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a690fcfb1032f4847d922734f2d08c898}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a690fcfb1032f4847d922734f2d08c898}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getVarHandle@{getVarHandle}}
+\index{getVarHandle@{getVarHandle}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getVarHandle()}{getVarHandle()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Var\+Handle (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get the variable handle from target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a2280a1ceae2853e4191000521d9f50af}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a2280a1ceae2853e4191000521d9f50af}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!getVarInfo@{getVarInfo}}
+\index{getVarInfo@{getVarInfo}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{getVarInfo()}{getVarInfo()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+get\+Var\+Info (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Get information about the variable from the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a3ffdd5a8415a0476f9956a1a14496603}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a3ffdd5a8415a0476f9956a1a14496603}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!read@{read}}
+\index{read@{read}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{read()}{read()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+read (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Read a single SVI variable from the target.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8ec8863cfb16df24a0d037be9d4a1af4}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8ec8863cfb16df24a0d037be9d4a1af4}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!updateVarInfo@{updateVarInfo}}
+\index{updateVarInfo@{updateVarInfo}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{updateVarInfo()}{updateVarInfo()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+update\+Var\+Info (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Update the variable information.
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8a0e4aa9518464c73dcaaa813e0aa19b}\label{classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable_a8a0e4aa9518464c73dcaaa813e0aa19b}} 
+\index{baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}!write@{write}}
+\index{write@{write}!baem200.baem200.m1com.\_SVIVariable@{baem200.baem200.m1com.\_SVIVariable}}
+\doxysubsubsection{\texorpdfstring{write()}{write()}}
+{\footnotesize\ttfamily def baem200.\+baem200.\+m1com.\+\_\+\+SVIVariable.\+write (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{data }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Write a single SVI variable to the target.
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+m1com.\+py\end{DoxyCompactItemize}
