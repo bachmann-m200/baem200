@@ -4,7 +4,6 @@
 # python classes to interact with a M1 Controller through M1Com and ctypes.
 
 import ctypes, os.path, shutil, sys
-from doctest import testfile
 if sys.platform == 'win32':
     from ctypes import wintypes
 from time import strptime, localtime
@@ -784,7 +783,7 @@ class PyCom:
             try:
                 shutil.copyfile(logprp, "log.prp")
             except Exception as e:
-                print("pyCom Warn: Can't Copy log.prp from path:\n" + logprp + "\n" + e)
+                print("pyCom Warn: Can't Copy log.prp from path:\n" + logprp + "\n" + str(e))
         m1Dll = ctypes.CDLL(dllpath)
         
         #configuration:
