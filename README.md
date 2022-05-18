@@ -68,7 +68,3 @@ Below you can directly view the documentation of all the available classes in th
 ## License
 
 This project is licensed under Bachmann electronic License - see the [LICENCE](LICENCE) file for details
-
-## Acknowledgments
-
-* 
