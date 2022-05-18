@@ -47,15 +47,22 @@ Furthermore, the files ending with 'Test.py' show an example for each class and 
 
 Below you can directly view the documentation of all the available classes in the browser:
 [M1Controller](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_controller.html)
-[M1Application](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_application.html)
-[M1SVIObserver](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer.html)
-[M1SVIReader](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader.html)
-[M1SVIWriter](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_writer.html)
-[M1TargetFinder](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_target_finder.html)
-[\_M1SwModule](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module.html)
-[\_SVIVariable](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable.html)
-[PyCom](http://htmlpreview.github.io/?classbaem200_1_1baem200_1_1m1com_1_1_py_com.html)
 
+[M1Application](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_application.html)
+
+[M1SVIObserver](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_observer.html)
+
+[M1SVIReader](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_reader.html)
+
+[M1SVIWriter](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_s_v_i_writer.html)
+
+[M1TargetFinder](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_m1_target_finder.html)
+
+[\_M1SwModule](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1___m1_sw_module.html)
+
+[\_SVIVariable](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1___s_v_i_variable.html)
+
+[PyCom](http://htmlpreview.github.io/?https://github.com/bachmann-m200/baem200/blob/master/doc/html/classbaem200_1_1baem200_1_1m1com_1_1_py_com.html)
 
 ## License
 
