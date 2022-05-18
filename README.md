@@ -43,7 +43,7 @@ mh.disconnect()
 ### Documentation
 The full documentation can be found in the ['doc' directory](https://github.com/bachmann-m200/baem200/tree/master/doc). Here you can for example navigate to the 'html/index.html' file to find a full description of each method (content should be downloaded first).
 
-Furthermore, the files ending with 'Test.py' show an example for each class and each method in the class ([example: m1comTest.py](https://github.com/bachmann-m200/baem200/blob/001e40ef145846639e368c378679d27c14709921/baem200/m1comTest.py#L199)
+Furthermore, the files ending with 'Test.py' show an example for each class and each method in the class ([example: m1comTest.py](https://github.com/bachmann-m200/baem200/blob/001e40ef145846639e368c378679d27c14709921/baem200/m1comTest.py#L199))
 
 Below you can directly view the documentation of all the available classes in the browser:
 
