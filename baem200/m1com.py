@@ -715,7 +715,7 @@ class PyCom:
     >>> dll.getDllBits()
     '64bit'
     """
-    def __init__(self, dllpath = ""):
+    def __init__(self, dllpath = "", servicename="PyCom"):
 
         self.operatingSystem = sys.platform
 
@@ -787,7 +787,7 @@ class PyCom:
         m1Dll = ctypes.CDLL(dllpath)
         
         #configuration:
-        self.servicename = "PyCom"
+        self.servicename = servicename
         
         #UnitTested: yes
         #returns the version of the m1com.dll
