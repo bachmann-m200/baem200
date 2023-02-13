@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="baem200",
-    version="0.0.12",
+    version="0.0.13",
     author="Sven Neumann",
     author_email="sven.neumann@bachmann.info",
     description="Bachmann electronic Python Util Library",
