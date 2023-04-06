@@ -4,6 +4,7 @@
 # python classes to interact with a M1 Controller through M1Com and ctypes.
 
 import ctypes, os.path, shutil, sys
+import datetime, warnings
 if sys.platform == 'win32':
     from ctypes import wintypes
 from time import strptime, localtime
@@ -443,7 +444,7 @@ class RFS_FSH_ATTRIB(ctypes.Structure):
     _fields_ = [("FileMode",        ctypes.c_uint16),
                 ("DosFileAtt",      ctypes.c_uint8),
                 ("ModTime",         tm),
-                ("Size",            (ctypes.c_char * RFS_DIRLEN_A))]
+                ("Size",            ctypes.c_uint32)]
 
 class RFS_LISTDIR_ITEM(ctypes.Structure):
     _fields_ = [("sizeOfItem",      ctypes.c_uint32),
@@ -458,18 +459,21 @@ class RFS_LISTDIR_C(ctypes.Structure):
                 ("Spare",           (ctypes.c_int32 * 3)),
                 ("DirName",         (ctypes.c_char * RFS_DIRLEN_A))]
 
-class RFS_LISTDIR_R(ctypes.Structure):
-    _fields_ = [("RetCode",         ctypes.c_int32),
+'''
+This function is a factory method than can be used to create a RFS_LISTDIR_R
+structure with the correct number of RFS_LISTDIR_ITEM entries. 
+'''
+def N_RFS_LISTDIR_R(num_of_structs):
+    class _RFS_LISTDIR_R(ctypes.Structure):
+            _fields_ = [
+                ("RetCode",         ctypes.c_int32),
                 ("NbItems",         ctypes.c_uint32),
                 ("EndOfDir",        ctypes.c_int32),
                 ("Spare",           (ctypes.c_int32 * 3)),
-                ("Items",           RFS_LISTDIR_ITEM)]
-    def __init__(self, num_of_structs):
-        #elems = (RFS_LISTDIR_ITEM * num_of_structs)()
-        #self.Items = ctypes.cast(elems, ctypes.POINTER(RFS_LISTDIR_ITEM))
-        #self.NbItems = num_of_structs
-        print("Size: " + str(ctypes.sizeof(self)))
-    
+                ("Items",           RFS_LISTDIR_ITEM*num_of_structs)]
+    return _RFS_LISTDIR_R()
+
+
 class TARGET_INFO(ctypes.Structure):
     _fields_ = [("extPingR", RES_EXTPING_R),
                 ("hostAddr", ctypes.c_char * 16)]
@@ -702,7 +706,108 @@ class PyComTypeException(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
-        
+
+'''
+Class used to represent file system entries like:
+- Directories
+- Files
+- Links
+- ...
+
+The class contains following attributes:
+- name:         Name of the entry 
+- path:         Absoulte Path of the entry
+- fileMode:     FileMode see stat.h for details 
+- dosFileAtt:   File attribute byte (dosFs only)
+- modTime:      Last Modification (datetime object)
+- size:         File Size (only available for file ebtries)
+
+and methods: 
+...
+- isDir():      Returns true if directory
+- isFile():     Returns true if file
+- isLink():     Returns true if link
+
+
+'''
+class FileSystemEntry:
+
+    # see stat.h -> File modes for details
+    _FILE_MODE_S_IFMT	= 0xf000		#/* file type field */
+    _FILE_MODE_S_IFDIR	= 0x4000		#/*  directory */
+    _FILE_MODE_S_IFREG	= 0x8000		#/*  regular */
+    _FILE_MODE_S_IFLNK	= 0xa000		#/*  symbolic link */
+
+
+
+    def __init__(self, name='', path= '', fileMode=0, dosFileAtt=0, modTime=None, size=None):
+        self.name = name                # Name of the entry
+        self.path = path                # Absolute path of entry
+        self.fileMode = fileMode        # File mode (see stat.h)
+        self.dosFileAtt = dosFileAtt    # Fos file att. (dosFs only!)
+        self.modTime = modTime          # Latest modification time 
+        self.size = size                # File Size (only correct for FILES!)
+
+    def __str__(self):
+        prefix = ''
+        if(self.isFile()):
+            prefix += 'F - '
+        elif(self.isDir()):
+             prefix += 'D - '
+        elif(self.isLink()):
+             prefix += 'L - '
+        prefix += str(self.modTime) +' - '
+        return prefix+self.name
+    
+    def __repr__(self):
+        return "FileSystemEntry(" +self.name+")"
+    
+    '''
+    Returns the size of the FileSystemEntry
+
+    Warning: This only works for FileSystemEntries of the Type File!
+    '''
+    def getSize(self):
+        if(self.isFile()): 
+            return self.size
+    
+    '''
+    Returns the name of the FileSystemEntry
+    '''
+    def getName(self):
+        return self.name
+
+    '''
+    Returns the abs. path of the FileSystemEntry
+    '''
+    def getPath(self):
+        return self.path
+
+    '''
+    Returns a datetime object of the last modification 
+    '''
+    def getModificationDate(self):
+        if(self.modTime):
+            return self.modTime
+
+    '''
+    Return true if the FileSystemEntry is a directory 
+    '''
+    def isDir(self):
+        return ((self.fileMode & self._FILE_MODE_S_IFMT) == self._FILE_MODE_S_IFDIR)
+    
+    '''
+    Return true if the FileSystemEntry is a file 
+    '''
+    def isFile(self):
+        return ((self.fileMode & self._FILE_MODE_S_IFMT) == self._FILE_MODE_S_IFREG)
+    
+    '''
+    Return true if the FileSystemEntry is a link 
+    '''
+    def isLink(self):
+        return ((self.fileMode & self._FILE_MODE_S_IFMT) == self._FILE_MODE_S_IFLNK)
+
 class PyCom:
     """
     Instance loading the M1COM DLL.
@@ -1495,6 +1600,7 @@ class M1Controller:
         if(self._pycom.RFS_Remove(self.getCtrlHandle(), remoteFileName.encode('utf-8')) != OK):
             raise PyComException(("pyCom Error: Can't remove " + remoteFileName + " on Controller['"+self._ip+"']"))
 
+
     def listDirectory(self, directoryPath):
         """
         List directory content. This SMI function gets the content of a directory. 
@@ -1508,32 +1614,50 @@ class M1Controller:
         send.MaxNbItems = ctypes.c_uint32(100)
         send.DirName = directoryPath.encode()
 
-        recv = RFS_LISTDIR_R(1)
+        recv = N_RFS_LISTDIR_R(1)
 
         if(self.sendCall('RFS', 124, send, recv).RetCode != OK):
             errorMsg = self.getErrorInfo(recv.RetCode)
             raise PyComException(("m1com Error: Can't list directory of Controller["+self._ip+"], error message: " + str(errorMsg)))
 
-        recv = RFS_LISTDIR_R(recv.NbItems)
+        recv = N_RFS_LISTDIR_R(recv.NbItems)
 
         if(self.sendCall('RFS', 124, send, recv).RetCode != OK):
             errorMsg = self.getErrorInfo(recv.RetCode)
             raise PyComException(("m1com Error: Can't list directory of Controller["+self._ip+"], error message: " + str(errorMsg)))
         
-        #print("tm_sec: " + str(recv.Items.Attrib.ModTime.tm_sec))
-        #print("tm_min: " + str(recv.Items.Attrib.ModTime.tm_min))
-        #print("tm_hour: " + str(recv.Items.Attrib.ModTime.tm_hour))
-        #print("tm_mday: " + str(recv.Items.Attrib.ModTime.tm_mday))
-        #print("tm_mon: " + str(recv.Items.Attrib.ModTime.tm_mon))
-        #print("tm_year: " + str(recv.Items.Attrib.ModTime.tm_year))
-        #print("tm_wday: " + str(recv.Items.Attrib.ModTime.tm_wday))
-        #print("tm_yday: " + str(recv.Items.Attrib.ModTime.tm_yday))
-        #print("tm_isdst: " + str(recv.Items.Attrib.ModTime.tm_isdst))
+        # Triggered when the end of the directory is not reached
+        if(recv.EndOfDir == 0):
+            warnings.warn("m1com Warning: LISTDIR did not reach end of directory!")
+        # Used to return all fileSystemEntries
+        fileSystemEntries = []
+        # Used to iterate over the LISTDIR_ITEMs
+        offset = 0
+        for n_Entry in range(recv.NbItems):
+            item_ptr = ctypes.cast(ctypes.byref(recv.Items, offset), ctypes.POINTER(RFS_LISTDIR_ITEM))
+            # Create datetime object
+            mTime = datetime.datetime(item_ptr.contents.Attrib.ModTime.tm_year+1900,
+                                      item_ptr.contents.Attrib.ModTime.tm_mon+1,
+                                      item_ptr.contents.Attrib.ModTime.tm_mday,
+                                      item_ptr.contents.Attrib.ModTime.tm_hour,
+                                      item_ptr.contents.Attrib.ModTime.tm_min,
+                                      item_ptr.contents.Attrib.ModTime.tm_sec)
+            
+            # Create FileSystemEntry
+            entry  = FileSystemEntry(item_ptr.contents.Name.decode('utf-8'),
+                                     os.path.join(directoryPath,item_ptr.contents.Name.decode('utf-8')),
+                                     item_ptr.contents.Attrib.FileMode,
+                                     item_ptr.contents.Attrib.DosFileAtt,
+                                     mTime,
+                                     item_ptr.contents.Attrib.Size)
+            # Append new entry
+            fileSystemEntries.append(entry)
+
+            # Offset is increased by the size of the items entry
+            offset += item_ptr.contents.sizeOfItem      
         
-        returnValue = recv.Items.Name
-        
-        return returnValue
-    
+        return fileSystemEntries
+
     def reboot(self):
         """
         Reboot the target.
@@ -3634,3 +3758,4 @@ if __name__ == "__main__":
 
     import doctest
     doctest.testmod(verbose=False)
+    

@@ -413,12 +413,31 @@ class Test_M1Controller(unittest.TestCase):
         dirContent = mh.listDirectory("/cfc0/")
 
         foundMconfigIni = False
-        for item in dirContent:
-            if "mconfig" in dirContent:
-                foundMconfigIni = True
+        isFile = False
+        isDir = False
+        isLink = False
+        mconfigPath =''
+        modTime = None
+        size = 0
 
-        # Currently fails....
+        for item in dirContent:
+            if item.getName() == 'mconfig.ini':
+                foundMconfigIni = True
+                isFile = item.isFile()
+                isDir = item.isDir()
+                isLink = item.isLink()
+                mconfigPath = item.getPath()
+                modTime = item.getModificationDate()
+                size = item.getSize()
+
+        # Works just fine ...
         self.assertTrue(foundMconfigIni, msg="mconfig.ini not found using listDirectory function")
+        self.assertTrue(isFile, msg="mconfig.ini not listed as file using listDirectory function")
+        self.assertFalse(isDir, msg="mconfig.ini listed as dir using listDirectory function")
+        self.assertFalse(isLink, msg="mconfig.ini listed as link using listDirectory function")
+        self.assertEqual(mconfigPath, "/cfc0/mconfig.ini", "mconfig.ini wrong absolute path using listDirectory function")
+        self.assertTrue((modTime is not None), msg="mconfig.ini wrong mod time using listDirectory function")
+        self.assertTrue((size>0), msg="mconfig.ini wrong size using listDirectory function")
 
         self.assertEqual(mh.disconnect(), 0)
 
@@ -1857,6 +1876,7 @@ if __name__ == "__main__":
     test = Test_M1Controller()
     test.test_getNetworkInfo()
     test.test_setIP()
+    test.test_listDirectory()
 
     # Find all classes and there callable methods in m1com
     M1comClasses = {}
@@ -1894,4 +1914,5 @@ if __name__ == "__main__":
     # Print number of not tested methods
     if count > 0:
         print('\n' + str(count) + ' methods were not tested or failed the unittest!')
+        
 
