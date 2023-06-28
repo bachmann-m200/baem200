@@ -3154,7 +3154,10 @@ class _M1SwModule:
         if(self.m1ctrl._pycom.MODULE_GetVariables(self.getModHandle(), nbsvivars, myVarList) != OK):
             raise PyComException(("pyCom Error: Can't get SviVariable List from Module["+self.name+"] on Controller["+self.m1ctrl._ip+"]"))
         for num in range(0, nbsvivars):
-            py_svivarlist[myVarEntrys.ARRAY[num].name.decode('utf-8')] = _SVIVariable(myVarEntrys.ARRAY[num].name.decode('utf-8'), self)
+            try:
+                py_svivarlist[myVarEntrys.ARRAY[num].name.decode('utf-8')] = _SVIVariable(myVarEntrys.ARRAY[num].name.decode('utf-8'), self)
+            except:
+                pass
         return py_svivarlist
 
 class _SVIVariable:
